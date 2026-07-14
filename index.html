@@ -85,6 +85,10 @@
     padding:20px; margin-bottom:20px;
   }
   .panel h2{font-size:17px; margin-bottom:14px; display:flex; align-items:center; gap:8px;}
+  .collapsible-header{cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; margin-bottom:14px;}
+  .collapsible-header h2{margin-bottom:0;}
+  .chevron{font-size:13px; color:var(--text-dim); transition:transform .2s ease; flex-shrink:0; margin-left:10px;}
+  .chevron.collapsed{transform:rotate(-90deg);}
   .zone-tag{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; font-weight:700;}
   .zone-a{background:var(--accent-soft); color:var(--accent);}
   .zone-b{background:var(--accent2-soft); color:var(--accent2);}
@@ -281,7 +285,7 @@
     <h2 data-i18n="panelEntryTitle">Neue Aufnahme eintragen</h2>
 
     <div class="zone-toggle" style="margin-bottom:14px;">
-      <div class="zone-btn active-a" id="btnTypeBird" onclick="setEntryType('bird')" data-i18n="typeBird">BirdNET-Morgen</div>
+      <div class="zone-btn active-a" id="btnTypeBird" onclick="setEntryType('bird')" data-i18n="typeBird">BirdNET-Aufnahme</div>
       <div class="zone-btn" id="btnTypeNight" onclick="setEntryType('night')" data-i18n="typeNight">Nachtkamera</div>
     </div>
 
@@ -354,15 +358,20 @@
   </div>
 
   <div class="panel">
-    <h2 data-i18n="panelOverviewTitle">Artenübersicht</h2>
-    <div class="overview-controls">
-      <select id="sortSelect" onchange="setSortMode(this.value)">
-        <option value="freq" data-i18n="sortFreq">Häufigkeit</option>
-        <option value="name" data-i18n="sortName">Name</option>
-        <option value="recent" data-i18n="sortRecent">Zuletzt gesehen</option>
-      </select>
+    <div class="collapsible-header" onclick="togglePanel('speciesOverviewBody')">
+      <h2 data-i18n="panelOverviewTitle">Artenübersicht</h2>
+      <span class="chevron" id="speciesOverviewBody-chevron">▾</span>
     </div>
-    <div id="speciesOverview" class="loading" data-i18n="loadingText">Lade Daten…</div>
+    <div id="speciesOverviewBody">
+      <div class="overview-controls">
+        <select id="sortSelect" onchange="setSortMode(this.value)">
+          <option value="freq" data-i18n="sortFreq">Häufigkeit</option>
+          <option value="name" data-i18n="sortName">Name</option>
+          <option value="recent" data-i18n="sortRecent">Zuletzt gesehen</option>
+        </select>
+      </div>
+      <div id="speciesOverview" class="loading" data-i18n="loadingText">Lade Daten…</div>
+    </div>
   </div>
 
   <div class="panel">
@@ -378,8 +387,13 @@
   </div>
 
   <div class="panel">
-    <h2 data-i18n="panelHistoryTitle">Verlauf</h2>
-    <div id="historyList" class="loading" data-i18n="loadingText">Lade Daten…</div>
+    <div class="collapsible-header" onclick="togglePanel('historyBody')">
+      <h2 data-i18n="panelHistoryTitle">Verlauf</h2>
+      <span class="chevron" id="historyBody-chevron">▾</span>
+    </div>
+    <div id="historyBody">
+      <div id="historyList" class="loading" data-i18n="loadingText">Lade Daten…</div>
+    </div>
   </div>
 
 </main>
@@ -573,7 +587,7 @@ const I18N = {
   sortRecent:       {de:"Zuletzt gesehen", en:"Last seen"},
   newSpeciesToast:  {de:"🎉 Neue Art entdeckt: ", en:"🎉 New species spotted: "},
   noDescription:    {de:"Keine Beschreibung verfügbar.", en:"No description available."},
-  typeBird:         {de:"BirdNET-Morgen", en:"BirdNET Morning"},
+  typeBird:         {de:"BirdNET-Aufnahme", en:"BirdNET Recording"},
   typeNight:        {de:"Nachtkamera", en:"Night Camera"},
   panelNightOverviewTitle:{de:"Nachtkamera-Übersicht", en:"Night Camera Overview"},
   tagNight:         {de:"Nacht", en:"Night"},
@@ -1016,6 +1030,26 @@ function initMap(){
     circleB.setRadius(+e.target.value);
     document.getElementById('rBVal').textContent = e.target.value;
     saveSettings();
+  });
+}
+
+function togglePanel(bodyId){
+  const body = document.getElementById(bodyId);
+  const chevron = document.getElementById(bodyId + '-chevron');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  if(chevron) chevron.classList.toggle('collapsed', !collapsed);
+  localStorage.setItem('birdlog:collapsed:' + bodyId, (!collapsed).toString());
+}
+
+function initCollapsibles(){
+  ['speciesOverviewBody', 'historyBody'].forEach(id=>{
+    if(localStorage.getItem('birdlog:collapsed:' + id) === 'true'){
+      const body = document.getElementById(id);
+      const chevron = document.getElementById(id + '-chevron');
+      if(body) body.style.display = 'none';
+      if(chevron) chevron.classList.add('collapsed');
+    }
   });
 }
 
@@ -1477,6 +1511,7 @@ document.getElementById('entryTime').value = nowStr();
 addSpeciesRow();
 switchLang(lang);
 checkOnboarding();
+initCollapsibles();
 </script>
 
 </body>
