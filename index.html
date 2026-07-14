@@ -3,30 +3,60 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Feldjournal — Garten &amp; Nacht</title>
+<title>SongbirdJournal</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root{
     --bg:#ffffff;
     --bg-panel:#ffffff;
-    --bg-elev:#f4f8fd;
-    --border:#d6e2f0;
-    --text:#0a1a2f;
-    --text-dim:#5c7089;
-    --accent:#0057d9;
-    --accent-soft:#e6f0ff;
-    --accent2:#0057d9;
-    --accent2-soft:#e6f0ff;
+    --bg-elev:#f5f4f6;
+    --border:#e0dce1;
+    --text:#181418;
+    --text-dim:#6b6470;
+
+    --accent:#9A0085;
+    --accent-hover:#7A0069;
+    --accent-active:#5C004F;
+    --accent-soft:#f7e5f4;
+
+    --accent2:#00747F;
+    --accent2-hover:#005B64;
+    --accent2-soft:#e0f4f5;
+
+    --notify:#E2661C;
+    --notify-hover:#C4560F;
+    --notify-soft:#fdeee3;
+
+    --status-safe:#2E8B57;
+    --status-safe-soft:#e3f3ea;
+    --status-near:#C9962E;
+    --status-near-soft:#fbf1de;
+    --status-threatened:#C0392B;
+    --status-threatened-soft:#fbe4e1;
+
     --danger:#c0392b;
+    --cta:#9A0085;
+    --cta-hover:#7A0069;
+    --cta-active:#5C004F;
+    --heading:#484554;
   }
+  button{
+    font-family:inherit;
+    cursor:pointer;
+    transition: filter .15s ease, transform .08s ease, opacity .15s ease, box-shadow .15s ease;
+  }
+  button:hover:not(:disabled){ filter:brightness(1.08); }
+  button:active:not(:disabled){ filter:brightness(0.88); transform:scale(0.97); }
+  button:disabled{ opacity:.55; cursor:default; filter:none; transform:none; }
+  button:focus-visible{ outline:2px solid var(--cta); outline-offset:2px; }
   *{box-sizing:border-box;}
   body{
     margin:0; background:var(--bg); color:var(--text);
     font-family:Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased;
     padding-bottom:60px;
   }
-  h1,h2,h3{font-family:Helvetica, Arial, sans-serif; font-weight:700; margin:0;}
+  h1,h2,h3{font-family:Helvetica, Arial, sans-serif; font-weight:700; margin:0; color:var(--heading);}
   .mono{font-family:Helvetica, Arial, sans-serif;}
   header{
     padding:28px 20px 18px; border-bottom:2px solid var(--accent);
@@ -36,15 +66,15 @@
   header h1{font-size:26px;}
   .backup-banner{
     display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
-    background:var(--accent-soft); color:var(--accent); padding:10px 20px; font-size:12px; font-weight:600;
+    background:var(--notify-soft); color:var(--notify); padding:10px 20px; font-size:12px; font-weight:600;
     border-bottom:1px solid var(--border);
   }
   .backup-banner-actions{display:flex; gap:8px; flex-shrink:0;}
   .backup-banner-actions button{
     border:none; border-radius:5px; padding:6px 12px; font-size:11px; font-weight:700; cursor:pointer;
   }
-  .backup-banner-actions button:not(.backup-banner-dismiss){background:var(--accent); color:#fff;}
-  .backup-banner-dismiss{background:none; color:var(--accent); text-decoration:underline;}
+  .backup-banner-actions button:not(.backup-banner-dismiss){background:var(--notify); color:#fff;}
+  .backup-banner-dismiss{background:none; color:var(--notify); text-decoration:underline;}
   .streak{
     text-align:right; color:var(--text-dim); font-size:13px;
   }
@@ -54,10 +84,10 @@
     background:var(--bg-panel); border:1px solid var(--border); border-radius:8px;
     padding:20px; margin-bottom:20px;
   }
-  .panel h2{font-size:17px; margin-bottom:14px; display:flex; align-items:center; gap:8px; color:var(--accent);}
+  .panel h2{font-size:17px; margin-bottom:14px; display:flex; align-items:center; gap:8px;}
   .zone-tag{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; font-weight:700;}
   .zone-a{background:var(--accent-soft); color:var(--accent);}
-  .zone-b{background:var(--bg-elev); color:var(--text-dim); border:1px solid var(--border);}
+  .zone-b{background:var(--accent2-soft); color:var(--accent2);}
   #map{height:280px; border-radius:6px; margin-bottom:14px; border:1px solid var(--border);}
   .slider-row{display:flex; gap:16px; flex-wrap:wrap;}
   .slider-group{flex:1; min-width:180px;}
@@ -75,7 +105,7 @@
     color:var(--text-dim); cursor:pointer; font-size:13px; text-align:center; transition:.15s; font-weight:500;
   }
   .zone-btn.active-a{background:var(--accent); border-color:var(--accent); color:#ffffff;}
-  .zone-btn.active-b{background:var(--accent); border-color:var(--accent); color:#ffffff;}
+  .zone-btn.active-b{background:var(--accent2); border-color:var(--accent2); color:#ffffff;}
   .species-row{display:flex; gap:8px; margin-top:8px; align-items:center;}
   .species-row input[type=text]{flex:2;}
   .species-row input[type=number]{flex:1;}
@@ -100,10 +130,12 @@
   }
   .add-species-btn:hover{border-color:var(--accent); color:var(--accent);}
   .save-btn{
-    margin-top:16px; width:100%; background:var(--accent); color:#ffffff; border:none;
-    padding:12px; border-radius:5px; font-weight:700; cursor:pointer; font-size:14px;
+    margin-top:16px; width:100%; background:var(--cta); color:#ffffff; border:none;
+    padding:12px; border-radius:5px; font-weight:700; font-size:14px;
+    box-shadow:0 1px 2px rgba(154,0,133,0.25);
   }
-  .save-btn:hover{opacity:.9;}
+  .save-btn:hover:not(:disabled){ background:var(--cta-hover); filter:none; box-shadow:0 3px 10px rgba(154,0,133,0.35); transform:translateY(-1px); }
+  .save-btn:active:not(:disabled){ background:var(--cta-active); filter:none; box-shadow:0 1px 2px rgba(154,0,133,0.25); transform:translateY(0) scale(0.98); }
   .import-toggle{
     font-size:12px; color:var(--accent); text-decoration:underline; cursor:pointer; margin-top:10px; display:inline-block;
   }
@@ -160,8 +192,8 @@
   .cal-weekday-labels{display:grid; grid-template-rows:repeat(7, 15px); gap:3px; font-size:9px; color:var(--text-dim); width:18px; flex-shrink:0; text-align:right; padding-right:2px;}
   .calendar-grid{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7, 15px); grid-auto-columns:15px; gap:3px;}
   .cal-cell{width:15px; height:15px; border-radius:3px; background:var(--bg-elev);}
-  .cal-cell[data-level="1"]{background:#c7dcfb;}
-  .cal-cell[data-level="2"]{background:#7aa9f2;}
+  .cal-cell[data-level="1"]{background:#f0c6e8;}
+  .cal-cell[data-level="2"]{background:#d480c4;}
   .cal-cell[data-level="3"]{background:var(--accent);}
   .cal-legend{display:flex; align-items:center; gap:6px; margin-top:10px; font-size:11px; color:var(--text-dim);}
   .cal-legend .cal-cell{width:12px; height:12px;}
@@ -172,7 +204,7 @@
   /* Toast */
   .toast{
     position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
-    background:var(--accent); color:#fff; padding:12px 20px; border-radius:8px; font-size:13px;
+    background:var(--notify); color:#fff; padding:12px 20px; border-radius:8px; font-size:13px;
     font-weight:600; opacity:0; transition:.3s; z-index:3000; pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,0.2);
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
@@ -181,10 +213,10 @@
   .overview-controls select{width:auto; font-size:12px; padding:5px 8px;}
   .sp-name-link{cursor:pointer; text-decoration:underline; text-decoration-color:var(--border);}
   .status-badge{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle;}
-  .status-badge.safe{background:#e3f2e3; color:#2e7d32;}
-  .status-badge.warn1{background:#fff4e0; color:#b8860b;}
-  .status-badge.warn2{background:#fde3e0; color:#c0392b;}
-  .status-badge.neo{background:var(--accent-soft); color:var(--accent);}
+  .status-badge.safe{background:var(--status-safe-soft); color:var(--status-safe);}
+  .status-badge.warn1{background:var(--status-near-soft); color:var(--status-near);}
+  .status-badge.warn2{background:var(--status-threatened-soft); color:var(--status-threatened);}
+  .status-badge.neo{background:var(--accent2-soft); color:var(--accent2);}
   .sp-name-link:hover{color:var(--accent);}
 </style>
 </head>
@@ -193,7 +225,7 @@
 <header>
   <div>
     <div class="eyebrow">52.9027, 8.4111</div>
-    <h1 data-i18n="title">Feldjournal</h1>
+    <h1 data-i18n="title">SongbirdJournal</h1>
   </div>
   <div style="display:flex; align-items:center; gap:16px;">
     <div style="display:flex; border:1px solid var(--border); border-radius:5px; overflow:hidden;">
@@ -355,7 +387,7 @@
 <div class="modal-overlay" id="onboardModal">
   <div class="modal-card" style="max-width:380px;">
     <div class="modal-body">
-      <h3 data-i18n="onboardTitle">Willkommen im Feldjournal</h3>
+      <h3 data-i18n="onboardTitle">Willkommen bei SongbirdJournal</h3>
       <div class="modal-extract" style="margin-top:10px;" data-i18n="onboardBody">
         Drei Schritte: (1) Platziere deine Zonen auf der Karte. (2) Trage eine Morgen-Session oder eine Nachtkamera-Sichtung ein. (3) Beobachte Arten, Serien und Muster über die Zeit.<br><br>
         Deine Daten bleiben ausschließlich in diesem Browser gespeichert — es gibt kein Konto und keine Cloud. Nutze regelmäßig „Exportieren", um eine Sicherung zu erstellen.
@@ -470,7 +502,7 @@ function statusBadgeHTML(name){
 }
 
 const I18N = {
-  title:            {de:"Feldjournal", en:"Field Journal"},
+  title:            {de:"SongbirdJournal", en:"SongbirdJournal"},
   streakLabel:      {de:"Aufnahmen geloggt", en:"Recordings logged"},
   exportBtn:        {de:"Exportieren", en:"Export"},
   importBtn:        {de:"Importieren", en:"Import"},
@@ -482,7 +514,7 @@ const I18N = {
   locateLoading:    {de:"Suche Standort…", en:"Locating…"},
   locateUnsupported:{de:"Standortbestimmung wird von diesem Browser nicht unterstützt.", en:"Geolocation isn't supported by this browser."},
   locateFailed:     {de:"Standort konnte nicht ermittelt werden. Bitte Berechtigung prüfen.", en:"Couldn't get your location. Please check permissions."},
-  onboardTitle:     {de:"Willkommen im Feldjournal", en:"Welcome to Feldjournal"},
+  onboardTitle:     {de:"Willkommen bei SongbirdJournal", en:"Welcome to SongbirdJournal"},
   onboardBody:      {
     de:'Drei Schritte: (1) Platziere deine Zonen auf der Karte. (2) Trage eine Morgen-Session oder eine Nachtkamera-Sichtung ein. (3) Beobachte Arten, Serien und Muster über die Zeit.<br><br>Deine Daten bleiben ausschließlich in diesem Browser gespeichert — es gibt kein Konto und keine Cloud. Nutze regelmäßig „Exportieren", um eine Sicherung zu erstellen.',
     en:'Three steps: (1) Place your zones on the map. (2) Log a morning session or a night-camera sighting. (3) Watch species, streaks, and patterns build up over time.<br><br>Your data lives only in this browser — there\'s no account and no cloud. Use "Export" regularly to keep a backup.'
@@ -779,7 +811,7 @@ function renderClock(entries){
 
   const maxCount = Math.max(1, ...byHour.map(s => s.size));
   const cx = 160, cy = 160, rInner = 42, rOuter = 140;
-  const levelColor = c => c === 0 ? 'var(--bg-elev)' : c <= maxCount*0.33 ? '#c7dcfb' : c <= maxCount*0.66 ? '#7aa9f2' : 'var(--accent)';
+  const levelColor = c => c === 0 ? 'var(--bg-elev)' : c <= maxCount*0.33 ? '#f0c6e8' : c <= maxCount*0.66 ? '#d480c4' : 'var(--accent)';
 
   let svg = '';
   for(let h = 0; h < 24; h++){
@@ -959,8 +991,8 @@ function initMap(){
   }
 
   marker = L.marker([center.lat, center.lng], {draggable:true}).addTo(map);
-  circleA = L.circle([center.lat, center.lng], {radius:40, color:'#0057d9', weight:2, fillOpacity:0.12}).addTo(map);
-  circleB = L.circle([center.lat, center.lng], {radius:120, color:'#0057d9', weight:2, fillOpacity:0.04, dashArray:'4 4'}).addTo(map);
+  circleA = L.circle([center.lat, center.lng], {radius:40, color:'#9A0085', weight:2, fillOpacity:0.12}).addTo(map);
+  circleB = L.circle([center.lat, center.lng], {radius:120, color:'#00747F', weight:2, fillOpacity:0.08, dashArray:'4 4'}).addTo(map);
   sightingsLayer = L.layerGroup().addTo(map);
 
   marker.on('drag', (e)=>{
@@ -1118,7 +1150,7 @@ function renderSightings(entries){
   sightingsLayer.clearLayers();
   entries.forEach(e=>{
     if(typeof e.lat !== 'number' || typeof e.lng !== 'number') return;
-    const color = e.type === 'night' ? '#0a1a2f' : '#0057d9';
+    const color = e.type === 'night' ? '#0a1a2f' : '#9A0085';
     const marker = L.circleMarker([e.lat, e.lng], {
       radius:7, color:'#fff', weight:2, fillColor:color, fillOpacity:0.9
     });
@@ -1289,7 +1321,7 @@ async function exportData(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'feldnotiz-backup-' + todayStr() + '.json';
+  a.download = 'songbirdjournal-backup-' + todayStr() + '.json';
   a.click();
   URL.revokeObjectURL(url);
   localStorage.setItem('birdlog:lastExport', String(Date.now()));
