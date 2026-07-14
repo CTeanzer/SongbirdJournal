@@ -184,6 +184,12 @@
   .modal-stats b{display:block; font-size:18px; color:var(--accent);}
   .modal-stats span{font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em;}
   .modal-extract{font-size:13px; line-height:1.5; color:var(--text);}
+  #guideModalBody h4{margin:18px 0 6px; font-size:14px; color:var(--heading);}
+  #guideModalBody h4:first-child{margin-top:0;}
+  #guideModalBody ul{margin:6px 0; padding-left:20px;}
+  #guideModalBody li{margin-bottom:4px;}
+  #guideModalBody p{margin:6px 0;}
+  #guideModalBody code{background:var(--bg-elev); padding:1px 5px; border-radius:3px; font-size:12px;}
   .modal-attr{font-size:10px; color:var(--text-dim); margin-top:12px;}
   .modal-attr a{color:var(--accent);}
 
@@ -236,6 +242,7 @@
       <button id="langDE" onclick="switchLang('de')" style="border:none; background:var(--accent); color:#fff; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:700;">DE</button>
       <button id="langEN" onclick="switchLang('en')" style="border:none; background:var(--bg-elev); color:var(--text-dim); padding:5px 10px; font-size:11px; cursor:pointer; font-weight:700;">EN</button>
     </div>
+    <button onclick="openGuideModal()" data-i18n="guideBtn" style="background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:600;">Anleitung</button>
     <div class="streak"><span data-i18n="streakLabel">Aufnahmen geloggt</span><b id="streakCount">–</b></div>
     <div style="display:flex; flex-direction:column; gap:4px;">
       <button onclick="exportData()" data-i18n="exportBtn" style="background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:600;">Exportieren</button>
@@ -398,6 +405,13 @@
 
 </main>
 
+<div class="modal-overlay" id="guideModal" onclick="if(event.target===this) closeGuideModal()">
+  <div class="modal-card" style="max-width:640px; max-height:80vh;">
+    <button class="modal-close" onclick="closeGuideModal()">×</button>
+    <div class="modal-body" id="guideModalBody" style="font-size:14px; line-height:1.6;"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="onboardModal">
   <div class="modal-card" style="max-width:380px;">
     <div class="modal-body">
@@ -520,6 +534,7 @@ function statusBadgeHTML(name){
 const I18N = {
   title:            {de:"SongbirdJournal", en:"SongbirdJournal"},
   streakLabel:      {de:"Aufnahmen geloggt", en:"Recordings logged"},
+  guideBtn:         {de:"Anleitung", en:"Guide"},
   exportBtn:        {de:"Exportieren", en:"Export"},
   importBtn:        {de:"Importieren", en:"Import"},
   panelMapTitle:    {de:"Standort &amp; Zonen", en:"Location &amp; Zones"},
@@ -1051,6 +1066,69 @@ function initCollapsibles(){
       if(chevron) chevron.classList.add('collapsed');
     }
   });
+}
+
+const GUIDE_CONTENT = {
+  de: `
+    <h4>Erste Schritte</h4>
+    <p>Auf „Meinen Standort verwenden" unter der Karte klicken — zentriert Karte und Zonen auf deinen tatsächlichen Standort.</p>
+    <h4>Zonen einrichten</h4>
+    <p>Zone A (durchgezogener Kreis) ist dein Hauptstandort, Zone B (gestrichelt) ein zweiter Ort. Marker ziehen zum Verschieben, Radius-Regler zum Anpassen. Beide Zonen zu nutzen ist optional.</p>
+    <h4>Eine Aufnahme eintragen</h4>
+    <ul>
+      <li>Typ wählen: BirdNET-Aufnahme oder Nachtkamera</li>
+      <li>Datum, Uhrzeit, Dauer und Zone festlegen</li>
+      <li>Jede Art mit Name, Anzahl und optional Konfidenz % eintragen</li>
+      <li>Speichern</li>
+    </ul>
+    <p>Mehrere Arten auf einmal: BirdNET-Export im Format <code>Art,Anzahl,Konfidenz</code> in das CSV-Feld einfügen.</p>
+    <h4>Was du bekommst</h4>
+    <ul>
+      <li>Artenübersicht &amp; Nachtkamera-Übersicht — sortierbar, mit Foto, Konfidenz und Gefährdungsstatus (wo verfügbar)</li>
+      <li>Aufnahme-Kalender mit Streaks</li>
+      <li>Tageszeit-Diagramm</li>
+      <li>Sichtungskarte (ungefähre Platzierung, keine exakten GPS-Koordinaten)</li>
+      <li>Verlauf — Artenübersicht und Verlauf lassen sich einklappen (Klick auf den Titel)</li>
+    </ul>
+    <h4>Daten sichern</h4>
+    <p>Alles bleibt nur in diesem Browser gespeichert. Regelmäßig „Exportieren" nutzen, „Importieren" führt Backups mit bestehenden Daten zusammen, ohne zu überschreiben.</p>
+    <h4>Feedback</h4>
+    <p>Die App wird laufend weiterentwickelt — Fehler, Ideen oder Wünsche gerne melden.</p>
+  `,
+  en: `
+    <h4>Getting started</h4>
+    <p>Click "Use my location" under the map — centers the map and zones on your actual location.</p>
+    <h4>Setting up zones</h4>
+    <p>Zone A (solid circle) is your main spot, Zone B (dashed) a second location. Drag the marker to reposition, use the radius sliders to resize. Using both zones is optional.</p>
+    <h4>Logging a recording</h4>
+    <ul>
+      <li>Choose type: BirdNET Recording or Night Camera</li>
+      <li>Set date, time, duration, and zone</li>
+      <li>Add each species with name, count, and optionally confidence %</li>
+      <li>Save</li>
+    </ul>
+    <p>Bulk-adding species: paste a BirdNET export in the format <code>Species,Count,Confidence</code> into the CSV box.</p>
+    <h4>What you get</h4>
+    <ul>
+      <li>Species &amp; Night Camera overview — sortable, with photo, confidence, and conservation status (where available)</li>
+      <li>Recording calendar with streaks</li>
+      <li>Time of day chart</li>
+      <li>Sightings map (approximate placement, not exact GPS)</li>
+      <li>History — Species Overview and History can be collapsed (click the title)</li>
+    </ul>
+    <h4>Backing up your data</h4>
+    <p>Everything stays only in this browser. Use "Export" regularly — "Import" merges backups with existing data, it won't overwrite.</p>
+    <h4>Feedback</h4>
+    <p>This app continues to evolve — bugs, ideas, or feature requests are welcome.</p>
+  `
+};
+
+function openGuideModal(){
+  document.getElementById('guideModalBody').innerHTML = GUIDE_CONTENT[lang];
+  document.getElementById('guideModal').classList.add('open');
+}
+function closeGuideModal(){
+  document.getElementById('guideModal').classList.remove('open');
 }
 
 function checkOnboarding(){
