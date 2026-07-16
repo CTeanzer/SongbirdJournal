@@ -322,6 +322,11 @@
     <button class="add-species-btn" onclick="addSpeciesRow()" data-i18n="addSpeciesBtn">+ Art hinzufügen</button>
 
     <div id="importSection">
+      <label class="field-label" data-i18n="uploadLabel" style="margin-top:16px;">BirdNET-Datei hochladen</label>
+      <input type="file" id="birdnetFileInput" accept=".txt" onchange="handleBirdnetFile(event)"
+        style="display:block; width:100%; font-size:12px; color:var(--text-dim); border:1px dashed var(--border); border-radius:6px; padding:10px; background:var(--bg-elev);">
+      <div id="uploadStatus" style="font-size:11px; color:var(--text-dim); margin-top:4px;"></div>
+
       <span class="import-toggle" onclick="toggleImport()" data-i18n="importToggle">oder BirdNET-Export einfügen (CSV: Art,Anzahl,Konfidenz)</span>
       <div class="import-box" id="importBox">
         <textarea id="importText" data-i18n-placeholder="importPlaceholder" placeholder="Amsel,3,73.2&#10;Grünfink,4,92.2&#10;Kleiber,8,94.7"></textarea>
@@ -564,6 +569,10 @@ const I18N = {
   fieldSpecies:     {de:"Beobachtete Arten", en:"Species observed"},
   addSpeciesBtn:    {de:"+ Art hinzufügen", en:"+ Add species"},
   importToggle:     {de:"oder BirdNET-Export einfügen (CSV: Art,Anzahl,Konfidenz)", en:"or paste BirdNET export (CSV: species,count,confidence)"},
+  uploadLabel:      {de:"BirdNET-Datei hochladen", en:"Upload BirdNET file"},
+  uploadReading:    {de:"Lese Datei…", en:"Reading file…"},
+  uploadSuccess:    {de:"{n} Arten eingelesen.", en:"{n} species loaded."},
+  uploadFailed:     {de:"Datei konnte nicht gelesen werden — ist es eine BirdNET-Selektionstabelle (.txt)?", en:"Couldn't read the file — is it a BirdNET selections table (.txt)?"},
   importPlaceholder:{de:"Amsel,3,73.2\nGrünfink,4,92.2\nKleiber,8,94.7", en:"Amsel,3,73.2\nGrünfink,4,92.2\nKleiber,8,94.7"},
   parseBtn:         {de:"Einlesen", en:"Parse"},
   fieldNotes:       {de:"Notizen", en:"Notes"},
@@ -1084,7 +1093,7 @@ const GUIDE_CONTENT = {
       <li>Jede Art mit Name, Anzahl und optional Konfidenz % eintragen</li>
       <li>Speichern</li>
     </ul>
-    <p>Mehrere Arten auf einmal: BirdNET-Export im Format <code>Art,Anzahl,Konfidenz</code> in das CSV-Feld einfügen.</p>
+    <p>Arten hinzufügen: BirdNET-Selektionstabelle (.txt) direkt hochladen — schnellste Variante, keine KI nötig. Alternativ CSV im Format <code>Art,Anzahl,Konfidenz</code> einfügen oder manuell eintragen.</p>
     <h4>Was du bekommst</h4>
     <ul>
       <li>Artenübersicht &amp; Nachtkamera-Übersicht — sortierbar, mit Foto, Konfidenz und Gefährdungsstatus (wo verfügbar)</li>
@@ -1110,7 +1119,7 @@ const GUIDE_CONTENT = {
       <li>Add each species with name, count, and optionally confidence %</li>
       <li>Save</li>
     </ul>
-    <p>Bulk-adding species: paste a BirdNET export in the format <code>Species,Count,Confidence</code> into the CSV box.</p>
+    <p>Adding species: upload a BirdNET selections table (.txt) directly — fastest, no AI needed. Or paste a CSV in the format <code>Species,Count,Confidence</code>, or type manually.</p>
     <h4>What you get</h4>
     <ul>
       <li>Species &amp; Night Camera overview — sortable, with photo, confidence, and conservation status (where available)</li>
@@ -1341,6 +1350,64 @@ function addSpeciesRow(name='', count=1, confidence=''){
     debounce = setTimeout(()=>updateRowThumb(id), 500);
   });
   if(name) updateRowThumb(id);
+}
+
+function handleBirdnetFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const status = document.getElementById('uploadStatus');
+  status.textContent = t('uploadReading');
+
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+      if(lines.length < 2) throw new Error('empty');
+
+      const header = lines[0].split('\t');
+      const nameIdx = header.indexOf('Common Name');
+      const confIdx = header.indexOf('Confidence');
+      const endIdx = header.indexOf('End Time (s)');
+      if(nameIdx === -1) throw new Error('not a selections file');
+
+      const agg = {};
+      let maxEnd = 0;
+      for(let i = 1; i < lines.length; i++){
+        const cols = lines[i].split('\t');
+        const name = cols[nameIdx];
+        if(!name) continue;
+        const conf = confIdx > -1 ? parseFloat(cols[confIdx]) : null;
+        if(!agg[name]) agg[name] = [];
+        if(conf !== null && !isNaN(conf)) agg[name].push(conf);
+        if(endIdx > -1){
+          const end = parseFloat(cols[endIdx]);
+          if(!isNaN(end)) maxEnd = Math.max(maxEnd, end);
+        }
+      }
+
+      const names = Object.keys(agg);
+      if(names.length === 0) throw new Error('no species found');
+
+      document.getElementById('speciesRows').innerHTML = '';
+      names.sort((a,b) => agg[b].length - agg[a].length).forEach(name=>{
+        const confs = agg[name];
+        const avgConf = confs.length ? (confs.reduce((a,b)=>a+b,0) / confs.length * 100).toFixed(1) : '';
+        addSpeciesRow(name, confs.length || 1, avgConf);
+      });
+
+      if(maxEnd > 0){
+        document.getElementById('entryDuration').value = Math.max(1, Math.round(maxEnd / 60));
+      }
+
+      status.textContent = t('uploadSuccess').replace('{n}', names.length);
+    }catch(err){
+      status.textContent = t('uploadFailed');
+      console.error('BirdNET file parse failed', err);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 function parseImport(){
