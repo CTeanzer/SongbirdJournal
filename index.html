@@ -481,6 +481,8 @@ const SPECIES_EN = {
   "Haussperling": "House Sparrow",
   "Gimpel": "Eurasian Bullfinch",
   "Wacholderdrossel": "Fieldfare",
+  "Buntspecht": "Great Spotted Woodpecker",
+  "Hohltaube": "Stock Dove",
   "Fuchs": "Red Fox",
   "Igel": "Hedgehog",
   "Reh": "Roe Deer",
@@ -838,7 +840,7 @@ function renderClock(entries){
     if(!e.time) return;
     const hour = parseInt(e.time.split(':')[0], 10);
     if(isNaN(hour)) return;
-    e.species.forEach(s => byHour[hour].add(s.name));
+    (Array.isArray(e.species)?e.species:[]).forEach(s => byHour[hour].add(s.name));
   });
 
   const maxCount = Math.max(1, ...byHour.map(s => s.size));
@@ -892,7 +894,7 @@ function renderCalendar(entries){
   const byDate = {};
   entries.forEach(e=>{
     if(!byDate[e.date]) byDate[e.date] = new Set();
-    e.species.forEach(s=>byDate[e.date].add(s.name));
+    (Array.isArray(e.species)?e.species:[]).forEach(s=>byDate[e.date].add(s.name));
   });
 
   const today = new Date();
@@ -1264,22 +1266,27 @@ function renderSightings(entries){
   if(!sightingsLayer) return;
   sightingsLayer.clearLayers();
   entries.forEach(e=>{
-    let lat = e.lat, lng = e.lng;
-    if(typeof lat !== 'number' || typeof lng !== 'number'){
-      // Imported/legacy entries never had coordinates saved — derive a
-      // fallback position now so they still show up, rather than skipping.
-      const zoneRadius = e.zone === 'B' ? +document.getElementById('radiusB').value : +document.getElementById('radiusA').value;
-      const pt = jitterPoint(center.lat, center.lng, zoneRadius, e.id);
-      lat = pt.lat; lng = pt.lng;
+    try{
+      let lat = e.lat, lng = e.lng;
+      if(typeof lat !== 'number' || typeof lng !== 'number'){
+        // Imported/legacy entries never had coordinates saved — derive a
+        // fallback position now so they still show up, rather than skipping.
+        const zoneRadius = e.zone === 'B' ? +document.getElementById('radiusB').value : +document.getElementById('radiusA').value;
+        const pt = jitterPoint(center.lat, center.lng, zoneRadius, e.id);
+        lat = pt.lat; lng = pt.lng;
+      }
+      const color = e.type === 'night' ? '#0a1a2f' : '#3D4759';
+      const marker = L.circleMarker([lat, lng], {
+        radius:7, color:'#fff', weight:2, fillColor:color, fillOpacity:0.9
+      });
+      const speciesList = Array.isArray(e.species) ? e.species : [];
+      const speciesText = speciesList.map(s=>speciesLabel(s.name)).join(', ');
+      const typeTag = e.type === 'night' ? t('tagNight') : t('tagDay');
+      marker.bindPopup(`<b>${e.date} ${e.time || ''}</b><br>${typeTag} · Zone ${e.zone}<br>${speciesText}`);
+      sightingsLayer.addLayer(marker);
+    }catch(err){
+      console.error('renderSightings: skipped a malformed entry', e && e.id, err);
     }
-    const color = e.type === 'night' ? '#0a1a2f' : '#3D4759';
-    const marker = L.circleMarker([lat, lng], {
-      radius:7, color:'#fff', weight:2, fillColor:color, fillOpacity:0.9
-    });
-    const speciesText = e.species.map(s=>speciesLabel(s.name)).join(', ');
-    const typeTag = e.type === 'night' ? t('tagNight') : t('tagDay');
-    marker.bindPopup(`<b>${e.date} ${e.time || ''}</b><br>${typeTag} · Zone ${e.zone}<br>${speciesText}`);
-    sightingsLayer.addLayer(marker);
   });
 }
 
@@ -1392,7 +1399,7 @@ async function saveEntry(){
     const existing = await db.get('entries').catch(()=>null);
     const entries = existing && existing.value ? JSON.parse(existing.value) : [];
     const knownSpecies = new Set();
-    entries.forEach(e=>e.species.forEach(s=>knownSpecies.add(s.name)));
+    entries.forEach(e=>(Array.isArray(e.species)?e.species:[]).forEach(s=>knownSpecies.add(s.name)));
     newSpecies = species.filter(s=>!knownSpecies.has(s.name)).map(s=>s.name);
 
     entries.push(entry);
@@ -1495,7 +1502,7 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
   }
   const agg = {};
   entries.forEach(e=>{
-    e.species.forEach(s=>{
+    (Array.isArray(e.species) ? e.species : []).forEach(s=>{
       if(!agg[s.name]) agg[s.name] = {total:0, days:new Set(), last:e.date, confidences:[]};
       agg[s.name].total += s.count;
       agg[s.name].days.add(e.date);
@@ -1548,15 +1555,16 @@ async function renderAll(){
   const nightEntries = entries.filter(e=> e.type === 'night');
 
   document.getElementById('streakCount').textContent = entries.length;
-  checkBackupReminder(entries.length);
-  renderCalendar(entries);
-  renderClock(entries);
-  renderSightings(entries);
+  try{ checkBackupReminder(entries.length); }catch(err){ console.error('checkBackupReminder failed', err); }
+  try{ renderCalendar(entries); }catch(err){ console.error('renderCalendar failed', err); }
+  try{ renderClock(entries); }catch(err){ console.error('renderClock failed', err); }
+  try{ renderSightings(entries); }catch(err){ console.error('renderSightings failed', err); }
 
-  renderOverviewTable(birdEntries, 'speciesOverview', sortMode, 'ov');
-  renderOverviewTable(nightEntries, 'nightOverview', nightSortMode, 'nov');
+  try{ renderOverviewTable(birdEntries, 'speciesOverview', sortMode, 'ov'); }catch(err){ console.error('renderOverviewTable (bird) failed', err); }
+  try{ renderOverviewTable(nightEntries, 'nightOverview', nightSortMode, 'nov'); }catch(err){ console.error('renderOverviewTable (night) failed', err); }
 
   // History
+  try{
   const history = document.getElementById('historyList');
   if(entries.length === 0){
     history.innerHTML = `<div class="empty-state">${t('emptyHistory')}</div>`;
@@ -1570,11 +1578,12 @@ async function renderAll(){
           <span class="zone-tag ${e.zone==='A' ? 'zone-a' : 'zone-b'}">Zone ${e.zone}</span>
           <button class="del-entry" onclick="deleteEntry('${e.id}')">${t('deleteBtn')}</button>
         </div>
-        <div class="entry-species">${e.species.map(s=>`${speciesLabel(s.name)} ×${s.count}`).join(' · ')}</div>
+        <div class="entry-species">${(Array.isArray(e.species)?e.species:[]).map(s=>`${speciesLabel(s.name)} ×${s.count}`).join(' · ')}</div>
         ${e.notes ? `<div class="entry-species" style="font-style:italic; margin-top:2px;">${e.notes}</div>` : ''}
       </div>
     `).join('');
   }
+  }catch(err){ console.error('history render failed', err); }
 }
 
 // init
