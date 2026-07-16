@@ -190,6 +190,24 @@
   #guideModalBody li{margin-bottom:4px;}
   #guideModalBody p{margin:6px 0;}
   #guideModalBody code{background:var(--bg-elev); padding:1px 5px; border-radius:3px; font-size:12px;}
+  #reportModalBody h3{font-size:20px; margin-bottom:2px;}
+  #reportModalBody h4{margin:18px 0 6px; font-size:14px; color:var(--heading);}
+  #reportModalBody ul{margin:6px 0; padding-left:20px;}
+  #reportModalBody li{margin-bottom:4px;}
+  #reportModalBody p{margin:6px 0;}
+  .report-presets{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .report-presets button{
+    padding:6px 12px; border-radius:5px; border:1px solid var(--border); background:var(--bg-elev);
+    color:var(--text-dim); font-size:12px; font-weight:600;
+  }
+  .report-range{display:flex; align-items:center; gap:8px; margin-bottom:14px;}
+  .report-range input{max-width:160px;}
+  @media print{
+    body > *:not(#reportModal){ display:none !important; }
+    #reportModal{ position:static !important; background:#fff !important; display:block !important; padding:0; }
+    #reportModal .modal-card{ max-width:100% !important; max-height:none !important; box-shadow:none !important; margin:0; }
+    .no-print{ display:none !important; }
+  }
   .modal-attr{font-size:10px; color:var(--text-dim); margin-top:12px;}
   .modal-attr a{color:var(--accent);}
 
@@ -408,7 +426,32 @@
     </div>
   </div>
 
+  <div class="panel">
+    <h2 data-i18n="panelReportTitle">Bericht</h2>
+    <div class="report-presets">
+      <button onclick="setReportPreset('week')" data-i18n="reportThisWeek">Diese Woche</button>
+      <button onclick="setReportPreset('month')" data-i18n="reportThisMonth">Dieser Monat</button>
+      <button onclick="setReportPreset('lastMonth')" data-i18n="reportLastMonth">Letzter Monat</button>
+    </div>
+    <div class="report-range">
+      <input type="date" id="reportStart">
+      <span>–</span>
+      <input type="date" id="reportEnd">
+    </div>
+    <button class="save-btn" onclick="generateReport()" data-i18n="reportGenerateBtn">Bericht erstellen</button>
+  </div>
+
 </main>
+
+<div class="modal-overlay" id="reportModal" onclick="if(event.target===this) closeReportModal()">
+  <div class="modal-card" id="reportModalCard" style="max-width:600px; max-height:85vh;">
+    <button class="modal-close no-print" onclick="closeReportModal()">×</button>
+    <div class="modal-body" id="reportModalBody" style="font-size:14px; line-height:1.6;"></div>
+    <div style="padding:0 20px 20px;" class="no-print">
+      <button class="save-btn" onclick="window.print()" data-i18n="reportPrintBtn" style="margin-top:0;">Drucken / Als PDF speichern</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="guideModal" onclick="if(event.target===this) closeGuideModal()">
   <div class="modal-card" style="max-width:640px; max-height:80vh;">
@@ -542,6 +585,20 @@ const I18N = {
   title:            {de:"SongbirdJournal", en:"SongbirdJournal"},
   streakLabel:      {de:"Aufnahmen geloggt", en:"Recordings logged"},
   guideBtn:         {de:"Anleitung", en:"Guide"},
+  panelReportTitle: {de:"Bericht", en:"Report"},
+  reportThisWeek:   {de:"Diese Woche", en:"This week"},
+  reportThisMonth:  {de:"Dieser Monat", en:"This month"},
+  reportLastMonth:  {de:"Letzter Monat", en:"Last month"},
+  reportGenerateBtn:{de:"Bericht erstellen", en:"Generate report"},
+  reportPrintBtn:   {de:"Drucken / Als PDF speichern", en:"Print / Save as PDF"},
+  reportNeedRange:  {de:"Bitte einen Zeitraum wählen.", en:"Please choose a date range."},
+  reportTitle:      {de:"Bericht", en:"Report"},
+  reportSessions:   {de:"Sessions", en:"Sessions"},
+  reportNewSpecies: {de:"Neue Arten", en:"New species"},
+  reportBusiestDay: {de:"Aktivster Tag", en:"Busiest day"},
+  reportNewSpeciesTitle: {de:"Neu in diesem Zeitraum", en:"New in this period"},
+  reportTopSpeciesTitle: {de:"Häufigste Arten", en:"Top species"},
+  reportBreakdownTitle:  {de:"Aufteilung", en:"Breakdown"},
   exportBtn:        {de:"Exportieren", en:"Export"},
   importBtn:        {de:"Importieren", en:"Import"},
   panelMapTitle:    {de:"Standort &amp; Zonen", en:"Location &amp; Zones"},
@@ -1139,6 +1196,90 @@ function openGuideModal(){
   document.getElementById('guideModalBody').innerHTML = GUIDE_CONTENT[lang];
   document.getElementById('guideModal').classList.add('open');
 }
+function setReportPreset(preset){
+  const today = new Date();
+  let start, end;
+  if(preset === 'week'){
+    end = new Date(today);
+    start = new Date(today);
+    start.setDate(start.getDate() - 6);
+  } else if(preset === 'month'){
+    start = new Date(today.getFullYear(), today.getMonth(), 1);
+    end = new Date(today);
+  } else if(preset === 'lastMonth'){
+    start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    end = new Date(today.getFullYear(), today.getMonth(), 0);
+  }
+  document.getElementById('reportStart').value = localDateKey(start);
+  document.getElementById('reportEnd').value = localDateKey(end);
+}
+
+async function generateReport(){
+  const startStr = document.getElementById('reportStart').value;
+  const endStr = document.getElementById('reportEnd').value;
+  if(!startStr || !endStr){ alert(t('reportNeedRange')); return; }
+
+  let entries = [];
+  try{
+    const res = await db.get('entries');
+    entries = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ entries = []; }
+
+  const inRange = entries.filter(e => e.date >= startStr && e.date <= endStr);
+  const before = entries.filter(e => e.date < startStr);
+
+  const beforeSpecies = new Set();
+  before.forEach(e => (Array.isArray(e.species)?e.species:[]).forEach(s => beforeSpecies.add(s.name)));
+
+  const speciesAgg = {};
+  const dayAgg = {};
+  let birdCount = 0, nightCount = 0, zoneACount = 0, zoneBCount = 0;
+
+  inRange.forEach(e=>{
+    if(e.type === 'night') nightCount++; else birdCount++;
+    if(e.zone === 'B') zoneBCount++; else zoneACount++;
+    if(!dayAgg[e.date]) dayAgg[e.date] = new Set();
+    (Array.isArray(e.species)?e.species:[]).forEach(s=>{
+      if(!speciesAgg[s.name]) speciesAgg[s.name] = {total:0, days:new Set()};
+      speciesAgg[s.name].total += s.count;
+      speciesAgg[s.name].days.add(e.date);
+      dayAgg[e.date].add(s.name);
+    });
+  });
+
+  const allNames = Object.keys(speciesAgg);
+  const newSpecies = allNames.filter(n => !beforeSpecies.has(n)).sort((a,b)=>speciesLabel(a).localeCompare(speciesLabel(b)));
+  const topSpecies = [...allNames].sort((a,b)=>speciesAgg[b].total - speciesAgg[a].total).slice(0, 10);
+
+  let busiestDay = null, busiestCount = 0;
+  Object.entries(dayAgg).forEach(([date, set])=>{
+    if(set.size > busiestCount){ busiestCount = set.size; busiestDay = date; }
+  });
+
+  const html = `
+    <h3>${t('reportTitle')}</h3>
+    <div class="modal-sub">${startStr} – ${endStr}</div>
+    <div class="modal-stats" style="flex-wrap:wrap;">
+      <div><b>${inRange.length}</b><span>${t('reportSessions')}</span></div>
+      <div><b>${allNames.length}</b><span>${t('colSpecies')}</span></div>
+      <div><b>${newSpecies.length}</b><span>${t('reportNewSpecies')}</span></div>
+      <div><b>${busiestDay ? busiestDay : '–'}</b><span>${t('reportBusiestDay')}</span></div>
+    </div>
+    ${newSpecies.length ? `<h4>${t('reportNewSpeciesTitle')}</h4><ul>${newSpecies.map(n=>`<li>${speciesLabel(n)}</li>`).join('')}</ul>` : ''}
+    <h4>${t('reportTopSpeciesTitle')}</h4>
+    <ul>${topSpecies.length ? topSpecies.map(n=>`<li>${speciesLabel(n)} — ${speciesAgg[n].total} (${speciesAgg[n].days.size} ${t('calDaysUnit')})</li>`).join('') : `<li>${t('emptyOverview')}</li>`}</ul>
+    <h4>${t('reportBreakdownTitle')}</h4>
+    <p>${t('typeBird')}: ${birdCount} · ${t('typeNight')}: ${nightCount}<br>Zone A: ${zoneACount} · Zone B: ${zoneBCount}</p>
+  `;
+
+  document.getElementById('reportModalBody').innerHTML = html;
+  document.getElementById('reportModal').classList.add('open');
+}
+
+function closeReportModal(){
+  document.getElementById('reportModal').classList.remove('open');
+}
+
 function closeGuideModal(){
   document.getElementById('guideModal').classList.remove('open');
 }
