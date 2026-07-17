@@ -40,7 +40,145 @@
     --cta-hover:#2E3646;
     --cta-active:#232A36;
     --heading:#484554;
+
+    --cal-1:#c9ced9;
+    --cal-2:#8b95a8;
+
+    /* Zone identity. Deliberately NOT the slate/teal chrome palette: those are
+       near-invisible drawn over satellite imagery. Amber + magenta read on both
+       aerial and street tiles, stay apart under red-green colour blindness, and
+       are backed up by solid-vs-dashed strokes. One hue per zone, used by the
+       map circles, the tags and the toggle buttons alike. */
+    --zone-a:#8A5A00;
+    --zone-a-soft:#FBF0DA;
+    --zone-a-line:#FFB100;
+    --zone-b:#A81C67;
+    --zone-b-soft:#FBE3F0;
+    --zone-b-line:#FF2D9B;
+
+    /* Recording type (day/night). One hue per type, shared by the history
+       chips and the map dots, which were previously two near-identical navies. */
+    --type-day:#00747F;
+    --type-day-soft:#E0F4F5;
+    --type-day-dot:#00B3C4;
+    --type-night:#5B3FBF;
+    --type-night-soft:#ECE7FB;
+    --type-night-dot:#7C4DFF;
+    --map-tile-filter:none;
+    color-scheme:light;
   }
+
+  /* Dark palette. Applied automatically when the OS asks for dark, unless the
+     user has explicitly pinned light; [data-theme="dark"] forces it on. */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14161a;
+      --bg-panel:#1b1e24;
+      --bg-elev:#242832;
+      --border:#333844;
+      --text:#e8e6ea;
+      --text-dim:#9b96a3;
+
+      --accent:#8fa3c4;
+      --accent-hover:#a5b6d2;
+      --accent-active:#bcc9df;
+      --accent-soft:#2a3242;
+
+      --accent2:#3FB8C4;
+      --accent2-hover:#5ecdd8;
+      --accent2-soft:#123037;
+
+      --notify:#F0842F;
+      --notify-hover:#ff9a4d;
+      --notify-soft:#3a2415;
+
+      --status-safe:#57C98A;
+      --status-safe-soft:#14301f;
+      --status-near:#E0B455;
+      --status-near-soft:#33280f;
+      --status-threatened:#E8695A;
+      --status-threatened-soft:#3a1a16;
+
+      --danger:#E8695A;
+      --cta:#4C5A75;
+      --cta-hover:#5A6A88;
+      --cta-active:#3E4A61;
+      --heading:#cfcbd8;
+
+      --cal-1:#3d4759;
+      --cal-2:#5f6d85;
+
+      --zone-a:#F0B653;
+      --zone-a-soft:#3a2a10;
+      --zone-a-line:#FFC344;
+      --zone-b:#F58BC2;
+      --zone-b-soft:#3a1428;
+      --zone-b-line:#FF5CB0;
+
+      --type-day:#3FB8C4;
+      --type-day-soft:#123037;
+      --type-day-dot:#2AD4E4;
+      --type-night:#A78BFA;
+      --type-night-soft:#241A3D;
+      --type-night-dot:#A78BFA;
+      --map-tile-filter:brightness(0.82) saturate(0.85);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14161a;
+    --bg-panel:#1b1e24;
+    --bg-elev:#242832;
+    --border:#333844;
+    --text:#e8e6ea;
+    --text-dim:#9b96a3;
+
+    --accent:#8fa3c4;
+    --accent-hover:#a5b6d2;
+    --accent-active:#bcc9df;
+    --accent-soft:#2a3242;
+
+    --accent2:#3FB8C4;
+    --accent2-hover:#5ecdd8;
+    --accent2-soft:#123037;
+
+    --notify:#F0842F;
+    --notify-hover:#ff9a4d;
+    --notify-soft:#3a2415;
+
+    --status-safe:#57C98A;
+    --status-safe-soft:#14301f;
+    --status-near:#E0B455;
+    --status-near-soft:#33280f;
+    --status-threatened:#E8695A;
+    --status-threatened-soft:#3a1a16;
+
+    --danger:#E8695A;
+    --cta:#4C5A75;
+    --cta-hover:#5A6A88;
+    --cta-active:#3E4A61;
+    --heading:#cfcbd8;
+
+    --cal-1:#3d4759;
+    --cal-2:#5f6d85;
+
+    --zone-a:#F0B653;
+    --zone-a-soft:#3a2a10;
+    --zone-a-line:#FFC344;
+    --zone-b:#F58BC2;
+    --zone-b-soft:#3a1428;
+    --zone-b-line:#FF5CB0;
+
+    --type-day:#3FB8C4;
+    --type-day-soft:#123037;
+    --type-day-dot:#2AD4E4;
+    --type-night:#A78BFA;
+    --type-night-soft:#241A3D;
+    --type-night-dot:#A78BFA;
+    --map-tile-filter:brightness(0.82) saturate(0.85);
+    color-scheme:dark;
+  }
+  .leaflet-tile-pane{filter:var(--map-tile-filter);}
   button{
     font-family:inherit;
     cursor:pointer;
@@ -57,7 +195,7 @@
     padding-bottom:60px;
   }
   h1,h2,h3{font-family:Helvetica, Arial, sans-serif; font-weight:700; margin:0; color:var(--heading);}
-  .mono{font-family:Helvetica, Arial, sans-serif;}
+  .mono{font-variant-numeric:tabular-nums;}
   header{
     padding:28px 20px 18px; border-bottom:2px solid var(--accent);
     display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;
@@ -78,20 +216,29 @@
   .streak{
     text-align:right; color:var(--text-dim); font-size:13px;
   }
-  .streak b{color:var(--accent); font-size:22px; display:block; font-weight:700;}
+  .streak b{color:var(--accent); font-size:22px; display:block; font-weight:700; font-variant-numeric:tabular-nums;}
   main{max-width:920px; margin:0 auto; padding:20px;}
   .panel{
     background:var(--bg-panel); border:1px solid var(--border); border-radius:8px;
     padding:20px; margin-bottom:20px;
   }
   .panel h2{font-size:17px; margin-bottom:14px; display:flex; align-items:center; gap:8px;}
-  .collapsible-header{cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; margin-bottom:14px;}
-  .collapsible-header h2{margin-bottom:0;}
+  .collapsible-header{
+    flex:1; width:100%; margin:0; padding:0; background:none; border:none;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font:inherit; color:inherit; text-align:left; user-select:none; cursor:pointer;
+  }
+  .collapsible-header:hover:not(:disabled){filter:none; color:var(--accent);}
+  .collapsible-header:active:not(:disabled){transform:none;}
   .chevron{font-size:13px; color:var(--text-dim); transition:transform .2s ease; flex-shrink:0; margin-left:10px;}
   .chevron.collapsed{transform:rotate(-90deg);}
   .zone-tag{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; font-weight:700;}
-  .zone-a{background:var(--accent-soft); color:var(--accent);}
-  .zone-b{background:var(--accent2-soft); color:var(--accent2);}
+  .zone-a{background:var(--zone-a-soft); color:var(--zone-a);}
+  .zone-b{background:var(--zone-b-soft); color:var(--zone-b);}
+  /* Type is a different axis from zone, so it must not borrow zone colours —
+     the two chips sit side by side in the history. */
+  .tag-day{background:var(--type-day-soft); color:var(--type-day);}
+  .tag-night{background:var(--type-night-soft); color:var(--type-night);}
   #map{height:280px; border-radius:6px; margin-bottom:14px; border:1px solid var(--border);}
   .slider-row{display:flex; gap:16px; flex-wrap:wrap;}
   .slider-group{flex:1; min-width:180px;}
@@ -105,11 +252,15 @@
   textarea{resize:vertical; min-height:50px;}
   .zone-toggle{display:flex; gap:8px; margin-top:6px;}
   .zone-btn{
-    flex:1; padding:10px; border-radius:5px; border:1px solid var(--border); background:var(--bg-elev);
+    flex:1; width:100%; font-family:inherit; padding:10px; border-radius:5px; border:1px solid var(--border); background:var(--bg-elev);
     color:var(--text-dim); cursor:pointer; font-size:13px; text-align:center; transition:.15s; font-weight:500;
   }
-  .zone-btn.active-a{background:var(--accent); border-color:var(--accent); color:#ffffff;}
-  .zone-btn.active-b{background:var(--accent2); border-color:var(--accent2); color:#ffffff;}
+  /* color:var(--bg) keeps the label readable on both the dark amber used in
+     light mode and the light amber used in dark mode. */
+  /* Plain "this one is selected" — no zone meaning. Used by the type toggle. */
+  .zone-btn.active-sel{background:var(--accent); border-color:var(--accent); color:#ffffff;}
+  .zone-btn.active-a{background:var(--zone-a); border-color:var(--zone-a); color:var(--bg);}
+  .zone-btn.active-b{background:var(--zone-b); border-color:var(--zone-b); color:var(--bg);}
   .species-row{display:flex; gap:8px; margin-top:8px; align-items:center;}
   .species-row input[type=text]{flex:2;}
   .species-row input[type=number]{flex:1;}
@@ -147,7 +298,7 @@
   .import-box.open{display:block;}
   .import-box textarea{font-family:Helvetica, Arial, sans-serif; font-size:12px;}
   .import-box button{margin-top:8px; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); padding:7px 12px; border-radius:5px; cursor:pointer; font-size:12px; font-weight:600;}
-  table{width:100%; border-collapse:collapse; font-size:13px;}
+  table{width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums;}
   th{text-align:left; color:var(--text-dim); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:6px 8px; border-bottom:2px solid var(--accent);}
   td{padding:8px; border-bottom:1px solid var(--border);}
   .freq-bar{height:6px; background:var(--bg-elev); border-radius:3px; overflow:hidden; margin-top:4px; width:100px;}
@@ -168,20 +319,23 @@
   }
   .modal-overlay.open{display:flex;}
   .modal-card{
-    background:#fff; border-radius:10px; max-width:420px; width:100%;
+    background:var(--bg-panel); border-radius:10px; max-width:420px; width:100%;
     max-height:85vh; overflow-y:auto; padding:0; position:relative;
   }
   .modal-close{
-    position:absolute; top:10px; right:10px; background:rgba(255,255,255,0.9); border:none;
+    position:absolute; top:10px; right:10px; background:var(--bg-panel); border:1px solid var(--border);
     width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:16px; color:var(--text); z-index:1;
   }
   .modal-img{width:100%; height:auto; max-height:320px; object-fit:contain; background:var(--bg-elev); display:block;}
   .modal-body{padding:20px;}
   .modal-body h3{font-size:20px; margin-bottom:2px;}
   .modal-body .modal-sub{color:var(--text-dim); font-size:12px; margin-bottom:14px;}
-  .modal-stats{display:flex; gap:16px; margin-bottom:14px;}
+  .modal-stats{display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:14px;}
+  @media (max-width:480px){
+    .modal-stats{grid-template-columns:repeat(2, 1fr);}
+  }
   .modal-stats div{flex:1; text-align:center; background:var(--bg-elev); border-radius:6px; padding:10px 4px;}
-  .modal-stats b{display:block; font-size:18px; color:var(--accent);}
+  .modal-stats b{display:block; font-size:18px; color:var(--accent); font-variant-numeric:tabular-nums;}
   .modal-stats span{font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em;}
   .modal-extract{font-size:13px; line-height:1.5; color:var(--text);}
   #guideModalBody h4{margin:18px 0 6px; font-size:14px; color:var(--heading);}
@@ -203,9 +357,26 @@
   .report-range{display:flex; align-items:center; gap:8px; margin-bottom:14px;}
   .report-range input{max-width:160px;}
   @media print{
+    /* Reports must print on white regardless of the active theme. Equal
+       specificity to the dark rules, but later in the sheet, so this wins. */
+    :root, :root[data-theme="dark"], :root:not([data-theme="light"]){
+      --bg:#ffffff; --bg-panel:#ffffff; --bg-elev:#ffffff;
+      --border:#cccccc; --text:#000000; --text-dim:#444444;
+      --heading:#000000; --accent:#3D4759; --accent2:#00747F;
+      --status-safe:#2E8B57; --status-safe-soft:#e3f3ea;
+      --status-near:#C9962E; --status-near-soft:#fbf1de;
+      --status-threatened:#C0392B; --status-threatened-soft:#fbe4e1;
+      --cal-1:#c9ced9; --cal-2:#8b95a8;
+      --zone-a:#8A5A00; --zone-a-soft:#FBF0DA; --zone-a-line:#FFB100;
+      --zone-b:#A81C67; --zone-b-soft:#FBE3F0; --zone-b-line:#FF2D9B;
+      --type-day:#00747F; --type-day-soft:#E0F4F5; --type-day-dot:#00B3C4;
+      --type-night:#5B3FBF; --type-night-soft:#ECE7FB; --type-night-dot:#7C4DFF;
+      --map-tile-filter:none;
+      color-scheme:light;
+    }
     body > *:not(#reportModal){ display:none !important; }
     #reportModal{ position:static !important; background:#fff !important; display:block !important; padding:0; }
-    #reportModal .modal-card{ max-width:100% !important; max-height:none !important; box-shadow:none !important; margin:0; }
+    #reportModal .modal-card{ max-width:100% !important; max-height:none !important; box-shadow:none !important; margin:0; background:#fff !important; }
     .no-print{ display:none !important; }
   }
   .modal-attr{font-size:10px; color:var(--text-dim); margin-top:12px;}
@@ -220,8 +391,8 @@
   .cal-weekday-labels{display:grid; grid-template-rows:repeat(7, 15px); gap:3px; font-size:9px; color:var(--text-dim); width:18px; flex-shrink:0; text-align:right; padding-right:2px;}
   .calendar-grid{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7, 15px); grid-auto-columns:15px; gap:3px;}
   .cal-cell{width:15px; height:15px; border-radius:3px; background:var(--bg-elev);}
-  .cal-cell[data-level="1"]{background:#c9ced9;}
-  .cal-cell[data-level="2"]{background:#8b95a8;}
+  .cal-cell[data-level="1"]{background:var(--cal-1);}
+  .cal-cell[data-level="2"]{background:var(--cal-2);}
   .cal-cell[data-level="3"]{background:var(--accent);}
   .cal-legend{display:flex; align-items:center; gap:6px; margin-top:10px; font-size:11px; color:var(--text-dim);}
   .cal-legend .cal-cell{width:12px; height:12px;}
@@ -237,7 +408,15 @@
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
-  .overview-controls{display:flex; justify-content:flex-end; margin-bottom:10px;}
+  .overview-controls{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .segmented{display:flex; border:1px solid var(--border); border-radius:6px; overflow:hidden;}
+  .segmented button{
+    border:none; background:var(--bg-elev); color:var(--text-dim);
+    padding:6px 12px; font-size:12px; font-weight:600; font-family:inherit;
+    border-right:1px solid var(--border);
+  }
+  .segmented button:last-child{border-right:none;}
+  .segmented button.active{background:var(--accent); color:#fff;}
   .overview-controls select{width:auto; font-size:12px; padding:5px 8px;}
   .sp-name-link{cursor:pointer; text-decoration:underline; text-decoration-color:var(--border);}
   .status-badge{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle;}
@@ -246,13 +425,65 @@
   .status-badge.warn2{background:var(--status-threatened-soft); color:var(--status-threatened);}
   .status-badge.neo{background:var(--accent2-soft); color:var(--accent2);}
   .sp-name-link:hover{color:var(--accent);}
+
+  /* BirdNET file dropzone */
+  .dropzone{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    border:1px dashed var(--border); border-radius:6px; background:var(--bg-elev);
+    padding:18px 14px; text-align:center; cursor:pointer; width:100%;
+    color:var(--text-dim); font-size:13px; font-family:inherit;
+    transition:border-color .15s ease, background .15s ease, color .15s ease;
+  }
+  .dropzone:hover{border-color:var(--accent); color:var(--accent);}
+  .dropzone.dragover{border-color:var(--accent2); background:var(--accent2-soft); color:var(--accent2); border-style:solid;}
+  .dropzone-main{font-weight:700;}
+  .dropzone-sub{font-size:11px;}
+
+  /* Header overflow menu */
+  .menu-wrap{position:relative;}
+  .menu-btn{
+    background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px;
+    padding:4px 8px; display:flex; align-items:center; justify-content:center;
+  }
+  .menu-btn svg{display:block;}
+  .menu-btn[aria-expanded="true"]{background:var(--accent-soft); border-color:var(--accent);}
+  .menu-pop{
+    display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:2500;
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:6px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.18); min-width:200px; padding:6px; text-align:left;
+  }
+  .menu-pop.open{display:block;}
+  .menu-pop button, .menu-pop label{
+    display:block; width:100%; text-align:left; background:none; border:none;
+    padding:8px 10px; border-radius:4px; font-size:12px; font-weight:600;
+    color:var(--text); cursor:pointer; font-family:inherit;
+  }
+  .menu-pop button:hover, .menu-pop label:hover{background:var(--bg-elev); filter:none;}
+  .menu-sep{height:1px; background:var(--border); margin:5px 2px;}
+  .menu-label{
+    padding:6px 10px 2px; font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--text-dim); font-weight:700;
+  }
+  .theme-row{display:flex; gap:4px; padding:2px 6px 6px;}
+  .theme-row button{
+    flex:1; text-align:center; border:1px solid var(--border); border-radius:4px;
+    padding:6px 4px; font-size:11px; color:var(--text-dim); background:var(--bg-elev);
+  }
+  .theme-row button.active{background:var(--accent); border-color:var(--accent); color:var(--bg-panel);}
+
+  /* Undo affordance inside the toast */
+  .toast.has-action{pointer-events:auto; display:flex; align-items:center; gap:14px;}
+  .toast-undo{
+    background:rgba(255,255,255,0.22); border:none; color:#fff; border-radius:4px;
+    padding:4px 10px; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
 </style>
 </head>
 <body>
 
 <header>
   <div>
-    <div class="eyebrow">52.9027, 8.4111</div>
+    <div class="eyebrow" id="headerCoords">–</div>
     <h1 data-i18n="title">SongbirdJournal</h1>
   </div>
   <div style="display:flex; align-items:center; gap:16px;">
@@ -262,12 +493,30 @@
     </div>
     <button onclick="openGuideModal()" data-i18n="guideBtn" style="background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:600;">Anleitung</button>
     <div class="streak"><span data-i18n="streakLabel">Aufnahmen geloggt</span><b id="streakCount">–</b></div>
-    <div style="display:flex; flex-direction:column; gap:4px;">
-      <button onclick="exportData()" data-i18n="exportBtn" style="background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:600;">Exportieren</button>
-      <label style="background:none; border:1px solid var(--border); color:var(--text-dim); border-radius:5px; padding:5px 10px; font-size:11px; cursor:pointer; text-align:center; font-weight:600;">
-        <span data-i18n="importBtn">Importieren</span>
-        <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
-      </label>
+    <div class="menu-wrap">
+      <button class="menu-btn" id="menuBtn" onclick="toggleMenu(event)" aria-haspopup="true"
+              aria-expanded="false" data-i18n-label="menuBtnLabel" aria-label="Einstellungen" title="Einstellungen">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M 20.79 10.05 A 9.00 9.00 0 0 1 20.79 13.95 L 18.06 13.74 A 6.30 6.30 0 0 1 17.51 15.05 L 19.59 16.84 A 9.00 9.00 0 0 1 16.84 19.59 L 15.05 17.51 A 6.30 6.30 0 0 1 13.74 18.06 L 13.95 20.79 A 9.00 9.00 0 0 1 10.05 20.79 L 10.26 18.06 A 6.30 6.30 0 0 1 8.95 17.51 L 7.16 19.59 A 9.00 9.00 0 0 1 4.41 16.84 L 6.49 15.05 A 6.30 6.30 0 0 1 5.94 13.74 L 3.21 13.95 A 9.00 9.00 0 0 1 3.21 10.05 L 5.94 10.26 A 6.30 6.30 0 0 1 6.49 8.95 L 4.41 7.16 A 9.00 9.00 0 0 1 7.16 4.41 L 8.95 6.49 A 6.30 6.30 0 0 1 10.26 5.94 L 10.05 3.21 A 9.00 9.00 0 0 1 13.95 3.21 L 13.74 5.94 A 6.30 6.30 0 0 1 15.05 6.49 L 16.84 4.41 A 9.00 9.00 0 0 1 19.59 7.16 L 17.51 8.95 A 6.30 6.30 0 0 1 18.06 10.26 Z"/>
+          <circle cx="12" cy="12" r="2.7"/>
+        </svg>
+      </button>
+      <div class="menu-pop" id="menuPop">
+        <div class="menu-label" data-i18n="menuDataLabel">Daten</div>
+        <button onclick="closeMenu(); exportData();" data-i18n="exportBtn">Exportieren</button>
+        <label>
+          <span data-i18n="importBtn">Importieren</span>
+          <input type="file" accept=".json" onchange="closeMenu(); importData(event)" style="display:none;">
+        </label>
+        <div class="menu-sep"></div>
+        <div class="menu-label" data-i18n="menuThemeLabel">Darstellung</div>
+        <div class="theme-row">
+          <button id="themeAuto" onclick="setTheme('auto')" data-i18n="themeAuto">Auto</button>
+          <button id="themeLight" onclick="setTheme('light')" data-i18n="themeLight">Hell</button>
+          <button id="themeDark" onclick="setTheme('dark')" data-i18n="themeDark">Dunkel</button>
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -283,35 +532,19 @@
 <main>
 
   <div class="panel">
-    <h2 data-i18n="panelMapTitle">Standort &amp; Zonen</h2>
-    <div style="position:relative;">
-      <div id="map"></div>
-      <div style="position:absolute; top:8px; right:8px; z-index:1000; display:flex; border:1px solid var(--border); border-radius:5px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.15);">
-        <button id="mapLayerSat" onclick="setMapLayer('sat')" data-i18n="satBtn" style="border:none; background:var(--accent); color:#fff; padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Satellit</button>
-        <button id="mapLayerStreet" onclick="setMapLayer('street')" data-i18n="streetBtn" style="border:none; background:#fff; color:var(--text-dim); padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Karte</button>
-      </div>
-      <button id="sightingsToggle" onclick="toggleSightings()" style="position:absolute; bottom:8px; left:8px; z-index:1000; border:1px solid var(--border); border-radius:5px; box-shadow:0 1px 4px rgba(0,0,0,0.15); background:var(--accent); color:#fff; padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Sichtungen: An</button>
-    </div>
-    <button id="locateBtn" onclick="useMyLocation()" data-i18n="locateBtn" style="margin-top:10px; background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:8px 14px; font-size:12px; cursor:pointer; font-weight:600;">Meinen Standort verwenden</button>
-    <div class="slider-row">
-      <div class="slider-group">
-        <label><span class="zone-tag zone-a" data-i18n="zoneATag">Zone A · Garten</span> Radius: <span id="rAVal">40</span> m</label>
-        <input type="range" id="radiusA" min="10" max="150" value="40">
-      </div>
-      <div class="slider-group">
-        <label><span class="zone-tag zone-b" data-i18n="zoneBTag">Zone B · Feldrand</span> Radius: <span id="rBVal">120</span> m</label>
-        <input type="range" id="radiusB" min="60" max="400" value="120">
-      </div>
-    </div>
-    <div style="font-size:12px; color:var(--text-dim); margin-top:10px;" data-i18n="dragHint">Marker ziehen, um den Aufnahmeort exakt zu platzieren.</div>
-  </div>
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('entryBody')"
+              aria-expanded="true" aria-controls="entryBody">
+        <span data-i18n="panelEntryTitle">Neue Aufnahme eintragen</span>
+        <span class="chevron" id="entryBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="entryBody">
 
-  <div class="panel">
-    <h2 data-i18n="panelEntryTitle">Neue Aufnahme eintragen</h2>
 
     <div class="zone-toggle" style="margin-bottom:14px;">
-      <div class="zone-btn active-a" id="btnTypeBird" onclick="setEntryType('bird')" data-i18n="typeBird">BirdNET-Aufnahme</div>
-      <div class="zone-btn" id="btnTypeNight" onclick="setEntryType('night')" data-i18n="typeNight">Nachtkamera</div>
+      <button type="button" class="zone-btn active-sel" id="btnTypeBird" onclick="setEntryType('bird')" aria-pressed="true" data-i18n="typeBird">BirdNET-Aufnahme</button>
+      <button type="button" class="zone-btn" id="btnTypeNight" onclick="setEntryType('night')" aria-pressed="false" data-i18n="typeNight">Nachtkamera</button>
     </div>
 
     <div class="slider-row">
@@ -331,18 +564,19 @@
 
     <label class="field-label" data-i18n="fieldZone">Zone</label>
     <div class="zone-toggle">
-      <div class="zone-btn active-a" id="btnZoneA" onclick="setZone('A')" data-i18n="zoneATag">Zone A · Garten</div>
-      <div class="zone-btn" id="btnZoneB" onclick="setZone('B')" data-i18n="zoneBTag">Zone B · Feldrand</div>
+      <button type="button" class="zone-btn active-a" id="btnZoneA" onclick="setZone('A')" aria-pressed="true" data-i18n="zoneATag">Zone A · Garten</button>
+      <button type="button" class="zone-btn" id="btnZoneB" onclick="setZone('B')" aria-pressed="false" data-i18n="zoneBTag">Zone B · Feldrand</button>
     </div>
-
-    <label class="field-label" data-i18n="fieldSpecies">Beobachtete Arten</label>
-    <div id="speciesRows"></div>
-    <button class="add-species-btn" onclick="addSpeciesRow()" data-i18n="addSpeciesBtn">+ Art hinzufügen</button>
 
     <div id="importSection">
       <label class="field-label" data-i18n="uploadLabel" style="margin-top:16px;">BirdNET-Datei hochladen</label>
-      <input type="file" id="birdnetFileInput" accept=".txt" onchange="handleBirdnetFile(event)"
-        style="display:block; width:100%; font-size:12px; color:var(--text-dim); border:1px dashed var(--border); border-radius:6px; padding:10px; background:var(--bg-elev);">
+      <div class="dropzone" id="birdnetDrop" tabindex="0" role="button"
+           onclick="document.getElementById('birdnetFileInput').click()"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('birdnetFileInput').click();}">
+        <span class="dropzone-main" data-i18n="dropzoneMain">BirdNET-.txt hierher ziehen</span>
+        <span class="dropzone-sub" data-i18n="dropzoneSub">oder klicken, um eine Datei zu wählen</span>
+      </div>
+      <input type="file" id="birdnetFileInput" accept=".txt" onchange="handleBirdnetFile(event)" style="display:none;">
       <div id="uploadStatus" style="font-size:11px; color:var(--text-dim); margin-top:4px;"></div>
 
       <span class="import-toggle" onclick="toggleImport()" data-i18n="importToggle">oder BirdNET-Export einfügen (CSV: Art,Anzahl,Konfidenz)</span>
@@ -352,14 +586,61 @@
       </div>
     </div>
 
+    <label class="field-label" data-i18n="fieldSpecies">Beobachtete Arten</label>
+    <div id="speciesRows"></div>
+    <button class="add-species-btn" onclick="addSpeciesRow()" data-i18n="addSpeciesBtn">+ Art hinzufügen</button>
+
+
     <label class="field-label" data-i18n="fieldNotes">Notizen</label>
     <textarea id="entryNotes" data-i18n-placeholder="notesPlaceholder" placeholder="Wetter, Beobachtungen, Auffälligkeiten..."></textarea>
 
     <button class="save-btn" onclick="saveEntry()" data-i18n="saveBtn">Aufnahme speichern</button>
+    </div>
   </div>
 
   <div class="panel">
-    <h2 data-i18n="panelCalendarTitle">Aufnahme-Kalender</h2>
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('mapBody')"
+              aria-expanded="true" aria-controls="mapBody">
+        <span data-i18n="panelMapTitle">Standort &amp; Zonen</span>
+        <span class="chevron" id="mapBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="mapBody">
+
+    <div style="position:relative;">
+      <div id="map"></div>
+      <div style="position:absolute; top:8px; right:8px; z-index:1000; display:flex; border:1px solid var(--border); border-radius:5px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.15);">
+        <button id="mapLayerSat" onclick="setMapLayer('sat')" data-i18n="satBtn" style="border:none; background:var(--accent); color:#fff; padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Satellit</button>
+        <button id="mapLayerStreet" onclick="setMapLayer('street')" data-i18n="streetBtn" style="border:none; background:var(--bg-panel); color:var(--text-dim); padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Karte</button>
+      </div>
+      <button id="sightingsToggle" onclick="toggleSightings()" style="position:absolute; bottom:8px; left:8px; z-index:1000; border:1px solid var(--border); border-radius:5px; box-shadow:0 1px 4px rgba(0,0,0,0.15); background:var(--accent); color:#fff; padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Sichtungen: An</button>
+    </div>
+    <button id="locateBtn" onclick="useMyLocation()" data-i18n="locateBtn" style="margin-top:10px; background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:8px 14px; font-size:12px; cursor:pointer; font-weight:600;">Meinen Standort verwenden</button>
+    <div class="slider-row">
+      <div class="slider-group">
+        <label><span class="zone-tag zone-a" data-i18n="zoneATag">Zone A · Garten</span> Radius: <span id="rAVal">40</span> m</label>
+        <input type="range" id="radiusA" min="10" max="150" value="40">
+      </div>
+      <div class="slider-group">
+        <label><span class="zone-tag zone-b" data-i18n="zoneBTag">Zone B · Feldrand</span> Radius: <span id="rBVal">120</span> m</label>
+        <input type="range" id="radiusB" min="60" max="400" value="120">
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--text-dim); margin-top:10px;" data-i18n="dragHint">Marker ziehen, um den Aufnahmeort exakt zu platzieren.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('calendarBody')"
+              aria-expanded="true" aria-controls="calendarBody">
+        <span data-i18n="panelCalendarTitle">Aufnahme-Kalender</span>
+        <span class="chevron" id="calendarBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="calendarBody">
+
     <div class="cal-stats" id="calStats"></div>
 
     <div class="cal-side-by-side">
@@ -385,15 +666,24 @@
         <div id="calClockDetail" class="cal-fan-hint"></div>
       </div>
     </div>
+    </div>
   </div>
 
   <div class="panel">
-    <div class="collapsible-header" onclick="togglePanel('speciesOverviewBody')">
-      <h2 data-i18n="panelOverviewTitle">Artenübersicht</h2>
-      <span class="chevron" id="speciesOverviewBody-chevron">▾</span>
-    </div>
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('speciesOverviewBody')"
+              aria-expanded="true" aria-controls="speciesOverviewBody">
+        <span data-i18n="panelOverviewTitle">Artenübersicht</span>
+        <span class="chevron" id="speciesOverviewBody-chevron">▾</span>
+      </button>
+    </h2>
     <div id="speciesOverviewBody">
       <div class="overview-controls">
+        <div class="segmented" role="group" aria-label="Filter">
+          <button type="button" id="scopeAll" class="active" onclick="setOverviewScope('all')" data-i18n="scopeAll">Alle</button>
+          <button type="button" id="scopeBird" onclick="setOverviewScope('bird')" data-i18n="scopeBird">Vögel</button>
+          <button type="button" id="scopeNight" onclick="setOverviewScope('night')" data-i18n="scopeNight">Nachtkamera</button>
+        </div>
         <select id="sortSelect" onchange="setSortMode(this.value)">
           <option value="freq" data-i18n="sortFreq">Häufigkeit</option>
           <option value="name" data-i18n="sortName">Name</option>
@@ -405,29 +695,28 @@
   </div>
 
   <div class="panel">
-    <h2 data-i18n="panelNightOverviewTitle">Nachtkamera-Übersicht</h2>
-    <div class="overview-controls">
-      <select id="nightSortSelect" onchange="setNightSortMode(this.value)">
-        <option value="freq" data-i18n="sortFreq">Häufigkeit</option>
-        <option value="name" data-i18n="sortName">Name</option>
-        <option value="recent" data-i18n="sortRecent">Zuletzt gesehen</option>
-      </select>
-    </div>
-    <div id="nightOverview" class="loading" data-i18n="loadingText">Lade Daten…</div>
-  </div>
-
-  <div class="panel">
-    <div class="collapsible-header" onclick="togglePanel('historyBody')">
-      <h2 data-i18n="panelHistoryTitle">Verlauf</h2>
-      <span class="chevron" id="historyBody-chevron">▾</span>
-    </div>
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('historyBody')"
+              aria-expanded="true" aria-controls="historyBody">
+        <span data-i18n="panelHistoryTitle">Verlauf</span>
+        <span class="chevron" id="historyBody-chevron">▾</span>
+      </button>
+    </h2>
     <div id="historyBody">
       <div id="historyList" class="loading" data-i18n="loadingText">Lade Daten…</div>
     </div>
   </div>
 
   <div class="panel">
-    <h2 data-i18n="panelReportTitle">Bericht</h2>
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('reportBody')"
+              aria-expanded="true" aria-controls="reportBody">
+        <span data-i18n="panelReportTitle">Bericht</span>
+        <span class="chevron" id="reportBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="reportBody">
+
     <div class="report-presets">
       <button onclick="setReportPreset('week')" data-i18n="reportThisWeek">Diese Woche</button>
       <button onclick="setReportPreset('month')" data-i18n="reportThisMonth">Dieser Monat</button>
@@ -439,6 +728,7 @@
       <input type="date" id="reportEnd">
     </div>
     <button class="save-btn" onclick="generateReport()" data-i18n="reportGenerateBtn">Bericht erstellen</button>
+    </div>
   </div>
 
 </main>
@@ -555,6 +845,15 @@ const SPECIES_EN = {
 
 const NIGHT_SPECIES = ["Fuchs","Igel","Reh","Wildschwein","Dachs","Steinmarder","Waschbär","Feldhase","Waldkauz","Steinkauz","Hauskatze"];
 
+// Every bird we know a translation for — SPECIES_EN minus the night-camera mammals.
+// COMMON_SPECIES stay pinned to the top of the suggestion list; the rest follow
+// alphabetically. Without this the datalist only covered 14 of ~40 logged species,
+// so rarer birds had to be typed blind and a typo silently created a new species.
+const ALL_BIRD_SPECIES = Object.keys(SPECIES_EN).filter(n => !NIGHT_SPECIES.includes(n));
+const BIRD_DATALIST = COMMON_SPECIES.concat(
+  ALL_BIRD_SPECIES.filter(n => !COMMON_SPECIES.includes(n)).sort((a,b)=>a.localeCompare(b,'de'))
+);
+
 // Conservation status, sourced from the German Red List of Breeding Birds
 // (Rote Liste der Brutvögel Deutschlands, 6th edition, 2020/2021, DDA/DRV).
 // Deliberately partial: only species with a clearly confirmed current
@@ -609,6 +908,18 @@ const I18N = {
   reportTopSpeciesTitle: {de:"Häufigste Arten", en:"Top species"},
   reportBreakdownTitle:  {de:"Aufteilung", en:"Breakdown"},
   exportBtn:        {de:"Exportieren", en:"Export"},
+  menuBtnLabel:     {de:"Einstellungen", en:"Settings"},
+  menuDataLabel:    {de:"Daten", en:"Data"},
+  menuThemeLabel:   {de:"Darstellung", en:"Appearance"},
+  themeAuto:        {de:"Auto", en:"Auto"},
+  themeLight:       {de:"Hell", en:"Light"},
+  themeDark:        {de:"Dunkel", en:"Dark"},
+  dropzoneMain:     {de:"BirdNET-.txt hierher ziehen", en:"Drop your BirdNET .txt here"},
+  dropzoneSub:      {de:"oder klicken, um eine Datei zu wählen", en:"or click to choose a file"},
+  dropWrongType:    {de:"Bitte eine .txt-Datei aus dem BirdNET-Export verwenden.", en:"Please use a .txt file from the BirdNET export."},
+  entryDeleted:     {de:"Aufnahme gelöscht", en:"Recording deleted"},
+  undoBtn:          {de:"Rückgängig", en:"Undo"},
+  entryRestored:    {de:"Aufnahme wiederhergestellt", en:"Recording restored"},
   importBtn:        {de:"Importieren", en:"Import"},
   panelMapTitle:    {de:"Standort &amp; Zonen", en:"Location &amp; Zones"},
   zoneATag:         {de:"Zone A · Garten", en:"Zone A · Garden"},
@@ -674,6 +985,10 @@ const I18N = {
   calBestStreak:    {de:"Beste Serie", en:"Best streak"},
   calActiveDays:    {de:"Aktive Tage", en:"Active days"},
   calDaysUnit:      {de:"Tage", en:"days"},
+  scopeAll:         {de:"Alle", en:"All"},
+  scopeBird:        {de:"Vögel", en:"Birds"},
+  scopeNight:       {de:"Nachtkamera", en:"Night camera"},
+  entrySaved:       {de:"Aufnahme gespeichert", en:"Recording saved"},
   sortFreq:         {de:"Häufigkeit", en:"Frequency"},
   sortName:         {de:"Name", en:"Name"},
   sortRecent:       {de:"Zuletzt gesehen", en:"Last seen"},
@@ -681,7 +996,6 @@ const I18N = {
   noDescription:    {de:"Keine Beschreibung verfügbar.", en:"No description available."},
   typeBird:         {de:"BirdNET-Aufnahme", en:"BirdNET Recording"},
   typeNight:        {de:"Nachtkamera", en:"Night Camera"},
-  panelNightOverviewTitle:{de:"Nachtkamera-Übersicht", en:"Night Camera Overview"},
   tagNight:         {de:"Nacht", en:"Night"},
   tagDay:           {de:"Tag", en:"Day"},
   sightingsLabelOn: {de:"Sichtungen: An", en:"Sightings: On"},
@@ -705,6 +1019,13 @@ function switchLang(l){
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
     el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+  });
+  // Separate hook: these elements have icon children, so data-i18n (which sets
+  // innerHTML) would wipe the SVG out.
+  document.querySelectorAll('[data-i18n-label]').forEach(el=>{
+    const label = t(el.getAttribute('data-i18n-label'));
+    el.setAttribute('aria-label', label);
+    el.setAttribute('title', label);
   });
   document.querySelectorAll('#speciesRows input[type=text]').forEach(el=>{
     el.placeholder = t('speciesPlaceholder');
@@ -892,10 +1213,34 @@ function closeSpeciesModal(){
 let toastTimeout;
 function showToast(msg){
   const toast = document.getElementById('toast');
+  toast.classList.remove('has-action');
   toast.textContent = msg;
   toast.classList.add('show');
   clearTimeout(toastTimeout);
   toastTimeout = setTimeout(()=>toast.classList.remove('show'), 3500);
+}
+
+function showUndoToast(msg){
+  const toast = document.getElementById('toast');
+  toast.innerHTML = '';
+  const label = document.createElement('span');
+  label.textContent = msg;
+  const btn = document.createElement('button');
+  btn.className = 'toast-undo';
+  btn.textContent = t('undoBtn');
+  btn.onclick = ()=>{
+    clearTimeout(toastTimeout);
+    toast.classList.remove('show', 'has-action');
+    undoDelete();
+  };
+  toast.appendChild(label);
+  toast.appendChild(btn);
+  toast.classList.add('has-action', 'show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(()=>{
+    toast.classList.remove('show', 'has-action');
+    pendingUndo = null;   // window closed; the delete is now final
+  }, 7000);
 }
 
 let sortMode = 'freq';
@@ -904,9 +1249,14 @@ function setSortMode(mode){
   renderAll();
 }
 
-let nightSortMode = 'freq';
-function setNightSortMode(mode){
-  nightSortMode = mode;
+let overviewScope = localStorage.getItem('birdlog:overviewScope') || 'all';
+function setOverviewScope(scope){
+  overviewScope = scope;
+  localStorage.setItem('birdlog:overviewScope', scope);
+  ['All','Bird','Night'].forEach(k=>{
+    const btn = document.getElementById('scope' + k);
+    if(btn) btn.classList.toggle('active', k.toLowerCase() === scope);
+  });
   renderAll();
 }
 
@@ -1072,6 +1422,18 @@ let satLayer, streetLayer, labelsLayer, sightingsLayer;
 let currentMapLayer = localStorage.getItem('birdlog:maplayer') || 'sat';
 let sightingsVisible = localStorage.getItem('birdlog:sightings') !== 'off';
 
+function cssVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// Map geometry has to be re-styled whenever the palette changes, because
+// Leaflet bakes SVG colours in at draw time rather than reading CSS.
+function applyMapTheme(){
+  if(!circleA || !circleB) return;
+  circleA.setStyle({color: cssVar('--zone-a-line'), fillColor: cssVar('--zone-a-line')});
+  circleB.setStyle({color: cssVar('--zone-b-line'), fillColor: cssVar('--zone-b-line')});
+}
+
 function initMap(){
   const DefaultIcon = L.icon({
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
@@ -1101,8 +1463,15 @@ function initMap(){
   }
 
   marker = L.marker([center.lat, center.lng], {draggable:true}).addTo(map);
-  circleA = L.circle([center.lat, center.lng], {radius:40, color:'#3D4759', weight:2, fillOpacity:0.12}).addTo(map);
-  circleB = L.circle([center.lat, center.lng], {radius:120, color:'#00747F', weight:2, fillOpacity:0.08, dashArray:'4 4'}).addTo(map);
+  // Solid vs dashed carries the A/B distinction independently of colour.
+  circleA = L.circle([center.lat, center.lng], {
+    radius:40, color:cssVar('--zone-a-line'), fillColor:cssVar('--zone-a-line'),
+    weight:3, opacity:0.95, fillOpacity:0.12
+  }).addTo(map);
+  circleB = L.circle([center.lat, center.lng], {
+    radius:120, color:cssVar('--zone-b-line'), fillColor:cssVar('--zone-b-line'),
+    weight:3, opacity:0.95, fillOpacity:0.08, dashArray:'6 5'
+  }).addTo(map);
   sightingsLayer = L.layerGroup().addTo(map);
 
   marker.on('drag', (e)=>{
@@ -1112,6 +1481,7 @@ function initMap(){
   });
   marker.on('dragend', (e)=>{
     center = e.target.getLatLng();
+    updateHeaderCoords();
     saveSettings();
   });
 
@@ -1127,24 +1497,145 @@ function initMap(){
   });
 }
 
+const PANEL_IDS = ['entryBody', 'mapBody', 'calendarBody', 'speciesOverviewBody',
+                   'historyBody', 'reportBody'];
+
+function setPanelCollapsed(bodyId, collapsed, persist){
+  const body = document.getElementById(bodyId);
+  if(!body) return;
+  const chevron = document.getElementById(bodyId + '-chevron');
+  const header = document.querySelector('[aria-controls="' + bodyId + '"]');
+  body.style.display = collapsed ? 'none' : '';
+  if(chevron) chevron.classList.toggle('collapsed', collapsed);
+  if(header) header.setAttribute('aria-expanded', String(!collapsed));
+  if(persist) localStorage.setItem('birdlog:collapsed:' + bodyId, collapsed.toString());
+  // Leaflet measures the container on creation; if it was hidden it renders at
+  // zero size, so re-measure whenever the map panel becomes visible again.
+  if(bodyId === 'mapBody' && !collapsed && typeof map !== 'undefined' && map){
+    setTimeout(()=>map.invalidateSize(), 0);
+  }
+}
+
 function togglePanel(bodyId){
   const body = document.getElementById(bodyId);
-  const chevron = document.getElementById(bodyId + '-chevron');
-  const collapsed = body.style.display === 'none';
-  body.style.display = collapsed ? '' : 'none';
-  if(chevron) chevron.classList.toggle('collapsed', !collapsed);
-  localStorage.setItem('birdlog:collapsed:' + bodyId, (!collapsed).toString());
+  if(!body) return;
+  setPanelCollapsed(bodyId, body.style.display !== 'none', true);
 }
 
 function initCollapsibles(){
-  ['speciesOverviewBody', 'historyBody'].forEach(id=>{
-    if(localStorage.getItem('birdlog:collapsed:' + id) === 'true'){
-      const body = document.getElementById(id);
-      const chevron = document.getElementById(id + '-chevron');
-      if(body) body.style.display = 'none';
-      if(chevron) chevron.classList.add('collapsed');
-    }
+  PANEL_IDS.forEach(id=>{
+    const stored = localStorage.getItem('birdlog:collapsed:' + id);
+    let collapsed;
+    // Everything opens by default. Auto-hiding the map read as "the map is
+    // gone" rather than "the map is tidied away"; collapsing stays the user's call.
+    setPanelCollapsed(id, stored === 'true', false);
   });
+}
+
+// ---- header coordinates ----------------------------------------------------
+// These used to be hardcoded to the author's garden, so every other user saw
+// Wildeshausen in their header no matter where their zones were.
+function updateHeaderCoords(){
+  const el = document.getElementById('headerCoords');
+  if(el && center) el.textContent = center.lat.toFixed(4) + ', ' + center.lng.toFixed(4);
+}
+
+// ---- theme -----------------------------------------------------------------
+// 'auto' follows the OS; light/dark pin it. Relevant because the night-camera
+// workflow happens in the dark.
+function setTheme(mode){
+  localStorage.setItem('birdlog:theme', mode);
+  if(mode === 'auto'){
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', mode);
+  }
+  ['Auto','Light','Dark'].forEach(m=>{
+    const btn = document.getElementById('theme' + m);
+    if(btn) btn.classList.toggle('active', m.toLowerCase() === mode);
+  });
+  if(typeof applyMapTheme === 'function') applyMapTheme();
+  if(typeof renderAll === 'function' && typeof map !== 'undefined' && map) renderAll();
+}
+
+function initTheme(){
+  setTheme(localStorage.getItem('birdlog:theme') || 'auto');
+  // On 'auto' the palette can change without any click, so repaint the map too.
+  if(window.matchMedia){
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = ()=>{
+      if((localStorage.getItem('birdlog:theme') || 'auto') !== 'auto') return;
+      applyMapTheme();
+      if(typeof map !== 'undefined' && map) renderAll();
+    };
+    if(mq.addEventListener) mq.addEventListener('change', onChange);
+    else if(mq.addListener) mq.addListener(onChange);
+  }
+}
+
+// ---- header overflow menu --------------------------------------------------
+function toggleMenu(event){
+  if(event) event.stopPropagation();
+  const pop = document.getElementById('menuPop');
+  const open = pop.classList.toggle('open');
+  document.getElementById('menuBtn').setAttribute('aria-expanded', String(open));
+}
+function closeMenu(){
+  const pop = document.getElementById('menuPop');
+  if(!pop) return;
+  pop.classList.remove('open');
+  document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', (e)=>{
+  const wrap = document.querySelector('.menu-wrap');
+  if(wrap && !wrap.contains(e.target)) closeMenu();
+});
+
+// ---- escape closes whatever is on top --------------------------------------
+document.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Escape') return;
+  const pop = document.getElementById('menuPop');
+  if(pop && pop.classList.contains('open')){ closeMenu(); return; }
+  // Onboarding is deliberately excluded: it has to be acknowledged.
+  const dismissable = ['speciesModal', 'guideModal', 'reportModal'];
+  for(const id of dismissable){
+    const el = document.getElementById(id);
+    if(el && el.classList.contains('open')){
+      el.classList.remove('open');
+      return;
+    }
+  }
+});
+
+// ---- BirdNET drag & drop ---------------------------------------------------
+function initDropzone(){
+  const zone = document.getElementById('birdnetDrop');
+  const input = document.getElementById('birdnetFileInput');
+  if(!zone || !input) return;
+
+  ['dragenter','dragover','dragleave','drop'].forEach(evt=>{
+    zone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); });
+  });
+  ['dragenter','dragover'].forEach(evt=>{
+    zone.addEventListener(evt, ()=> zone.classList.add('dragover'));
+  });
+  ['dragleave','drop'].forEach(evt=>{
+    zone.addEventListener(evt, ()=> zone.classList.remove('dragover'));
+  });
+
+  zone.addEventListener('drop', (e)=>{
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(!file) return;
+    if(!file.name.toLowerCase().endsWith('.txt')){
+      showToast(t('dropWrongType'));
+      return;
+    }
+    handleBirdnetFile({ target: { files: [file] } });
+  });
+
+  // Stop a stray miss from making the browser navigate away to the file.
+  window.addEventListener('dragover', (e)=> e.preventDefault());
+  window.addEventListener('drop', (e)=> e.preventDefault());
 }
 
 const GUIDE_CONTENT = {
@@ -1227,7 +1718,7 @@ function setReportPreset(preset){
 async function generateReport(){
   const startStr = document.getElementById('reportStart').value;
   const endStr = document.getElementById('reportEnd').value;
-  if(!startStr || !endStr){ alert(t('reportNeedRange')); return; }
+  if(!startStr || !endStr){ showToast(t('reportNeedRange')); return; }
 
   let entries = [];
   try{
@@ -1324,7 +1815,7 @@ function snoozeBackupBanner(){
 
 function useMyLocation(){
   if(!navigator.geolocation){
-    alert(t('locateUnsupported'));
+    showToast(t('locateUnsupported'));
     return;
   }
   const btn = document.getElementById('locateBtn');
@@ -1339,13 +1830,14 @@ function useMyLocation(){
       marker.setLatLng([center.lat, center.lng]);
       circleA.setLatLng([center.lat, center.lng]);
       circleB.setLatLng([center.lat, center.lng]);
+      updateHeaderCoords();
       saveSettings();
       renderAll();
       btn.textContent = originalText;
       btn.disabled = false;
     },
     (err)=>{
-      alert(t('locateFailed'));
+      showToast(t('locateFailed'));
       btn.textContent = originalText;
       btn.disabled = false;
     },
@@ -1377,14 +1869,17 @@ async function loadSettings(){
       document.getElementById('radiusB').value = s.radiusB;
       document.getElementById('rAVal').textContent = s.radiusA;
       document.getElementById('rBVal').textContent = s.radiusB;
+      updateHeaderCoords();
     }
   }catch(e){ /* no settings yet, defaults stand */ }
 }
 
 function setEntryType(type){
   currentEntryType = type;
-  document.getElementById('btnTypeBird').className = 'zone-btn' + (type==='bird' ? ' active-a' : '');
-  document.getElementById('btnTypeNight').className = 'zone-btn' + (type==='night' ? ' active-a' : '');
+  document.getElementById('btnTypeBird').className = 'zone-btn' + (type==='bird' ? ' active-sel' : '');
+  document.getElementById('btnTypeNight').className = 'zone-btn' + (type==='night' ? ' active-sel' : '');
+  document.getElementById('btnTypeBird').setAttribute('aria-pressed', String(type==='bird'));
+  document.getElementById('btnTypeNight').setAttribute('aria-pressed', String(type==='night'));
   document.getElementById('durationGroup').style.display = type==='bird' ? '' : 'none';
   document.getElementById('importSection').style.display = type==='bird' ? '' : 'none';
   document.getElementById('speciesRows').innerHTML = '';
@@ -1395,6 +1890,8 @@ function setZone(z){
   currentZone = z;
   document.getElementById('btnZoneA').className = 'zone-btn' + (z==='A' ? ' active-a' : '');
   document.getElementById('btnZoneB').className = 'zone-btn' + (z==='B' ? ' active-b' : '');
+  document.getElementById('btnZoneA').setAttribute('aria-pressed', String(z==='A'));
+  document.getElementById('btnZoneB').setAttribute('aria-pressed', String(z==='B'));
 }
 
 function jitterPoint(centerLat, centerLng, radiusMeters, seedStr){
@@ -1418,7 +1915,7 @@ function toggleSightings(){
 function updateSightingsToggleLabel(){
   const btn = document.getElementById('sightingsToggle');
   btn.textContent = sightingsVisible ? t('sightingsLabelOn') : t('sightingsLabelOff');
-  btn.style.background = sightingsVisible ? 'var(--accent)' : '#fff';
+  btn.style.background = sightingsVisible ? 'var(--accent)' : 'var(--bg-panel)';
   btn.style.color = sightingsVisible ? '#fff' : 'var(--text-dim)';
 }
 
@@ -1435,9 +1932,9 @@ function renderSightings(entries){
         const pt = jitterPoint(center.lat, center.lng, zoneRadius, e.id);
         lat = pt.lat; lng = pt.lng;
       }
-      const color = e.type === 'night' ? '#0a1a2f' : '#3D4759';
+      const color = cssVar(e.type === 'night' ? '--type-night-dot' : '--type-day-dot');
       const marker = L.circleMarker([lat, lng], {
-        radius:7, color:'#fff', weight:2, fillColor:color, fillOpacity:0.9
+        radius:7, color:'#fff', weight:2, fillColor:color, fillOpacity:0.95
       });
       const speciesList = Array.isArray(e.species) ? e.species : [];
       const speciesText = speciesList.map(s=>speciesLabel(s.name)).join(', ');
@@ -1459,7 +1956,7 @@ function setMapLayer(type){
     if(!map.hasLayer(labelsLayer)) labelsLayer.addTo(map);
     document.getElementById('mapLayerSat').style.background = 'var(--accent)';
     document.getElementById('mapLayerSat').style.color = '#fff';
-    document.getElementById('mapLayerStreet').style.background = '#fff';
+    document.getElementById('mapLayerStreet').style.background = 'var(--bg-panel)';
     document.getElementById('mapLayerStreet').style.color = 'var(--text-dim)';
   } else {
     if(map.hasLayer(satLayer)) map.removeLayer(satLayer);
@@ -1467,7 +1964,7 @@ function setMapLayer(type){
     if(!map.hasLayer(streetLayer)) streetLayer.addTo(map);
     document.getElementById('mapLayerStreet').style.background = 'var(--accent)';
     document.getElementById('mapLayerStreet').style.color = '#fff';
-    document.getElementById('mapLayerSat').style.background = '#fff';
+    document.getElementById('mapLayerSat').style.background = 'var(--bg-panel)';
     document.getElementById('mapLayerSat').style.color = 'var(--text-dim)';
   }
 }
@@ -1593,7 +2090,7 @@ function collectSpecies(){
 async function saveEntry(){
   const species = collectSpecies();
   if(species.length === 0){
-    alert(t('alertNeedSpecies'));
+    showToast(t('alertNeedSpecies'));
     return;
   }
   const entryId = 'e' + Date.now();
@@ -1622,10 +2119,10 @@ async function saveEntry(){
 
     entries.push(entry);
     const result = await db.set('entries', JSON.stringify(entries));
-    if(!result){ alert(t('alertSaveRetry')); return; }
+    if(!result){ showToast(t('alertSaveRetry')); return; }
   }catch(e){
     console.error(e);
-    alert(t('alertSaveFailed'));
+    showToast(t('alertSaveFailed'));
     return;
   }
 
@@ -1636,19 +2133,43 @@ async function saveEntry(){
   addSpeciesRow();
   renderAll();
 
+  if(newSpecies.length === 0){
+    showToast(t('entrySaved'));
+  }
   if(newSpecies.length > 0){
     const names = newSpecies.map(n=>speciesLabel(n)).join(', ');
     showToast(t('newSpeciesToast') + names);
   }
 }
 
+let pendingUndo = null;
+
 async function deleteEntry(id){
   try{
     const existing = await db.get('entries');
     let entries = JSON.parse(existing.value);
+    const removed = entries.find(e=>e.id === id);
+    if(!removed) return;
     entries = entries.filter(e=>e.id !== id);
     await db.set('entries', JSON.stringify(entries));
+    pendingUndo = removed;
     renderAll();
+    showUndoToast(t('entryDeleted'));
+  }catch(e){ console.error(e); }
+}
+
+// Data lives only in this browser, so a mis-tap is unrecoverable without this.
+async function undoDelete(){
+  if(!pendingUndo) return;
+  const entry = pendingUndo;
+  pendingUndo = null;
+  try{
+    const existing = await db.get('entries');
+    const entries = existing && existing.value ? JSON.parse(existing.value) : [];
+    entries.push(entry);
+    await db.set('entries', JSON.stringify(entries));
+    renderAll();
+    showToast(t('entryRestored'));
   }catch(e){ console.error(e); }
 }
 
@@ -1699,13 +2220,13 @@ function importData(event){
         });
 
         await db.set('entries', JSON.stringify(Array.from(merged.values())));
-        alert(t('alertImportOk') + ` (+${addedCount}${skippedCount ? ', ' + skippedCount + ' ' + t('importDuplicateNote') : ''})`);
+        showToast(t('alertImportOk') + ` (+${addedCount}${skippedCount ? ', ' + skippedCount + ' ' + t('importDuplicateNote') : ''})`);
       }
       if(data.settings) await db.set('map-settings', JSON.stringify(data.settings));
       loadSettings();
       renderAll();
     }catch(err){
-      alert(t('alertImportBad'));
+      showToast(t('alertImportBad'));
     }
   };
   reader.readAsText(file);
@@ -1778,8 +2299,12 @@ async function renderAll(){
   try{ renderClock(entries); }catch(err){ console.error('renderClock failed', err); }
   try{ renderSightings(entries); }catch(err){ console.error('renderSightings failed', err); }
 
-  try{ renderOverviewTable(birdEntries, 'speciesOverview', sortMode, 'ov'); }catch(err){ console.error('renderOverviewTable (bird) failed', err); }
-  try{ renderOverviewTable(nightEntries, 'nightOverview', nightSortMode, 'nov'); }catch(err){ console.error('renderOverviewTable (night) failed', err); }
+  // One table, filtered — birds and night-camera sightings were two identical
+  // panels differing only by which entries they were handed.
+  const scoped = overviewScope === 'bird' ? birdEntries
+               : overviewScope === 'night' ? nightEntries
+               : entries;
+  try{ renderOverviewTable(scoped, 'speciesOverview', sortMode, 'ov'); }catch(err){ console.error('renderOverviewTable failed', err); }
 
   // History
   try{
@@ -1792,7 +2317,7 @@ async function renderAll(){
       <div class="entry-card">
         <div class="entry-head">
           <span class="entry-date">${e.date} ${e.time || ''}</span>
-          <span class="zone-tag ${(e.type==='night') ? 'zone-b' : 'zone-a'}">${(e.type==='night') ? t('tagNight') : t('tagDay')}</span>
+          <span class="zone-tag ${(e.type==='night') ? 'tag-night' : 'tag-day'}">${(e.type==='night') ? t('tagNight') : t('tagDay')}</span>
           <span class="zone-tag ${e.zone==='A' ? 'zone-a' : 'zone-b'}">Zone ${e.zone}</span>
           <button class="del-entry" onclick="deleteEntry('${e.id}')">${t('deleteBtn')}</button>
         </div>
@@ -1805,9 +2330,11 @@ async function renderAll(){
 }
 
 // init
-document.body.insertAdjacentHTML('beforeend', speciesDatalistHTML('speciesList', COMMON_SPECIES));
+document.body.insertAdjacentHTML('beforeend', speciesDatalistHTML('speciesList', BIRD_DATALIST));
 document.body.insertAdjacentHTML('beforeend', speciesDatalistHTML('nightSpeciesList', NIGHT_SPECIES));
+initTheme();
 initMap();
+updateHeaderCoords();
 setMapLayer(currentMapLayer);
 if(!sightingsVisible) map.removeLayer(sightingsLayer);
 updateSightingsToggleLabel();
@@ -1816,6 +2343,8 @@ document.getElementById('entryDate').value = todayStr();
 document.getElementById('entryTime').value = nowStr();
 addSpeciesRow();
 switchLang(lang);
+setOverviewScope(overviewScope);
+initDropzone();
 checkOnboarding();
 initCollapsibles();
 </script>
