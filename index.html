@@ -1861,12 +1861,20 @@ const GUIDE_CONTENT = {
     <p>Arten hinzufügen: BirdNET-Selektionstabelle (.txt) direkt hochladen — schnellste Variante, keine KI nötig. Alternativ CSV im Format <code>Art,Anzahl,Konfidenz</code> einfügen oder manuell eintragen.</p>
     <h4>Was du bekommst</h4>
     <ul>
-      <li>Artenübersicht &amp; Nachtkamera-Übersicht — sortierbar, mit Foto, Konfidenz und Gefährdungsstatus (wo verfügbar)</li>
+      <li>Artenübersicht &amp; Nachtkamera-Übersicht — sortierbar, mit Foto, Konfidenz, Gefährdungsstatus, Verlässlichkeits-Badges und Überprüfung (wo verfügbar)</li>
       <li>Aufnahme-Kalender mit Streaks</li>
       <li>Tageszeit-Diagramm</li>
       <li>Sichtungskarte (ungefähre Platzierung, keine exakten GPS-Koordinaten)</li>
       <li>Verlauf — Artenübersicht und Verlauf lassen sich einklappen (Klick auf den Titel)</li>
     </ul>
+    <h4>Bestimmungs-Check</h4>
+    <p>Jede Art in der Übersicht wird dreifach eingeordnet:</p>
+    <ul>
+      <li><b>Verlässlichkeit</b> — <code>belastbar</code>, <code>wahrscheinlich</code> oder <code>prüfen</code>, abgeleitet aus BirdNET-Konfidenz, Anzahl Detektionen und Sessions. Es geht darum, wie sicher die Tonerkennung ist — nicht um die Anzahl der Vögel.</li>
+      <li><b>Habitat</b> — mit <code>prüfen</code> markierte Arten werden zusätzlich gegen die Landbedeckung am Aufnahmeort geprüft: <code>plausibel</code>, wenn der passende Lebensraum in der Nähe liegt, <code>unplausibel</code>, wenn Nötiges fehlt (ein Fichtenkreuzschnabel braucht Nadelwald). Das <code>?</code> heißt, die Landbedeckung ist bisher nur geschätzt.</li>
+      <li><b>Überprüfung</b> — eine Art anklicken und die Bestimmung nach Anhören des Clips <code>Bestätigen</code> oder <code>Verwerfen</code>. Deine Entscheidung überschreibt die automatischen Flags: bestätigt zeigt ein ✓, verworfen streicht die Art aus der Liste.</li>
+    </ul>
+    <p>Nur direkt hochgeladene BirdNET-Detektionen bringen die Konfidenz-Werte mit, die den Verlässlichkeits-Badge speisen — manuelle Einträge ohne Konfidenz % bekommen daher keinen Badge.</p>
     <h4>Daten sichern</h4>
     <p>Alles bleibt nur in diesem Browser gespeichert. Regelmäßig „Exportieren" nutzen, „Importieren" führt Backups mit bestehenden Daten zusammen, ohne zu überschreiben.</p>
     <h4>Feedback</h4>
@@ -1887,12 +1895,20 @@ const GUIDE_CONTENT = {
     <p>Adding species: upload a BirdNET selections table (.txt) directly — fastest, no AI needed. Or paste a CSV in the format <code>Species,Count,Confidence</code>, or type manually.</p>
     <h4>What you get</h4>
     <ul>
-      <li>Species &amp; Night Camera overview — sortable, with photo, confidence, and conservation status (where available)</li>
+      <li>Species &amp; Night Camera overview — sortable, with photo, confidence, conservation status, reliability badges, and verification (where available)</li>
       <li>Recording calendar with streaks</li>
       <li>Time of day chart</li>
       <li>Sightings map (approximate placement, not exact GPS)</li>
       <li>History — Species Overview and History can be collapsed (click the title)</li>
     </ul>
+    <h4>How the ID check works</h4>
+    <p>Every species in the overview gets sorted three ways:</p>
+    <ul>
+      <li><b>Reliability</b> — <code>solid</code>, <code>probable</code>, or <code>verify</code>, from BirdNET confidence, number of detections, and number of sessions. It's about how trustworthy the sound match is, not how many birds there are.</li>
+      <li><b>Habitat</b> — species flagged <code>verify</code> are also checked against the land cover around the recorder: <code>plausible</code> if their habitat is present nearby, <code>strike</code> if they need something that isn't there (a Crossbill needs conifer). The <code>?</code> means the land cover is still a provisional estimate.</li>
+      <li><b>Verification</b> — open any species and <code>Confirm</code> or <code>Reject</code> the ID after checking the clip. Your call overrides the automatic flags: confirmed shows a settled ✓, rejected strikes it from the list.</li>
+    </ul>
+    <p>Only BirdNET detections uploaded directly carry the per-detection confidence that drives the reliability badge — so manual entries without a confidence % won't show one.</p>
     <h4>Backing up your data</h4>
     <p>Everything stays only in this browser. Use "Export" regularly — "Import" merges backups with existing data, it won't overwrite.</p>
     <h4>Feedback</h4>
