@@ -424,6 +424,12 @@
   .status-badge.warn1{background:var(--status-near-soft); color:var(--status-near);}
   .status-badge.warn2{background:var(--status-threatened-soft); color:var(--status-threatened);}
   .status-badge.neo{background:var(--accent2-soft); color:var(--accent2);}
+  .rel-badge{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle; cursor:help;}
+  .rel-badge.rel-solid{background:var(--status-safe-soft); color:var(--status-safe);}
+  .rel-badge.rel-probable{background:var(--status-near-soft); color:var(--status-near);}
+  .rel-badge.rel-verify{background:var(--status-threatened-soft); color:var(--status-threatened);}
+  .rel-legend{font-size:11px; color:var(--text-dim); margin:0 0 8px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+  .rel-legend .rel-badge{margin-left:0; cursor:default;}
   .sp-name-link:hover{color:var(--accent);}
 
   /* BirdNET file dropzone */
@@ -889,6 +895,37 @@ function statusBadgeHTML(name){
   return `<span class="status-badge ${s.cls}">${label}</span>`;
 }
 
+// Reliability tier — how much the stored BirdNET confidences back the ID.
+// Two independent things drive trust: repetition (same species across several
+// sessions / many detections is hard to fake) and peak confidence (BirdNET's
+// best single hit). A species is only "verify" when BOTH are thin.
+// Notes: `sessions` = distinct recordings the name appears in; `n` = number of
+// stored per-detection confidences (0–1). Manual entries without confidence
+// return tier 'none' and get no badge, same as the avg-confidence column.
+function reliabilityTier(d){
+  const confs = d.confidences || [];
+  const n = confs.length;
+  const sessions = d.sessions ? d.sessions.size : 0;
+  if(n === 0) return {tier:'none', n:0, sessions};
+  const maxC  = Math.max(...confs) * 100;
+  const meanC = confs.reduce((a,b)=>a+b,0) / n * 100;
+  let tier;
+  if(sessions >= 3 || n >= 5 || (maxC >= 85 && sessions >= 2))      tier = 'solid';
+  else if(n <= 2 && maxC < 70)                                       tier = 'verify';
+  else                                                              tier = 'probable';
+  return {tier, n, sessions, maxC, meanC};
+}
+
+function reliabilityBadgeHTML(d){
+  const r = reliabilityTier(d);
+  if(r.tier === 'none') return '';
+  const label = t('rel' + r.tier.charAt(0).toUpperCase() + r.tier.slice(1));
+  const tip = t('relTip' + r.tier.charAt(0).toUpperCase() + r.tier.slice(1))
+    + ` (${lang==='en'?'max':'max.'} ${r.maxC.toFixed(0)}%, Ø ${r.meanC.toFixed(0)}%, `
+    + `${r.n} ${lang==='en'?'det.':'Det.'}, ${r.sessions} ${lang==='en'?'sess.':'Sess.'})`;
+  return `<span class="rel-badge rel-${r.tier}" title="${tip.replace(/"/g,'&quot;')}">${label}</span>`;
+}
+
 const I18N = {
   title:            {de:"SongbirdJournal", en:"SongbirdJournal"},
   streakLabel:      {de:"Aufnahmen geloggt", en:"Recordings logged"},
@@ -956,6 +993,13 @@ const I18N = {
   notesPlaceholder: {de:"Wetter, Beobachtungen, Auffälligkeiten...", en:"Weather, observations, anything notable..."},
   saveBtn:          {de:"Aufnahme speichern", en:"Save recording"},
   panelOverviewTitle:{de:"Artenübersicht", en:"Species overview"},
+  relSolid:         {de:"belastbar", en:"solid"},
+  relProbable:      {de:"wahrscheinlich", en:"probable"},
+  relVerify:        {de:"prüfen", en:"verify"},
+  relLegendLabel:   {de:"Verlässlichkeit der Bestimmung:", en:"ID reliability:"},
+  relTipSolid:      {de:"Belastbar — mehrfach nachgewiesen oder viele Detektionen.", en:"Solid — repeated across sessions or many detections."},
+  relTipProbable:   {de:"Wahrscheinlich — einzelner, aber ordentlicher Nachweis.", en:"Probable — few detections but decent confidence."},
+  relTipVerify:     {de:"Prüfen — wenige Nachweise mit niedriger Konfidenz. Originalclip anhören.", en:"Verify — few detections at low confidence. Check the original clip."},
   panelHistoryTitle: {de:"Verlauf", en:"History"},
   loadingText:      {de:"Lade Daten…", en:"Loading data…"},
   speciesPlaceholder:{de:"Art (z.B. Amsel)", en:"Species (e.g. Blackbird)"},
@@ -2242,9 +2286,10 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
   const agg = {};
   entries.forEach(e=>{
     (Array.isArray(e.species) ? e.species : []).forEach(s=>{
-      if(!agg[s.name]) agg[s.name] = {total:0, days:new Set(), last:e.date, confidences:[]};
+      if(!agg[s.name]) agg[s.name] = {total:0, days:new Set(), last:e.date, confidences:[], sessions:new Set()};
       agg[s.name].total += s.count;
       agg[s.name].days.add(e.date);
+      agg[s.name].sessions.add(e.id || (e.date + (e.time || '')));
       if(e.date > agg[s.name].last) agg[s.name].last = e.date;
       if(s.detections) s.detections.forEach(d=>agg[s.name].confidences.push(d.c));
     });
@@ -2259,6 +2304,12 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
   }
   const maxDays = Math.max(...rows.map(r=>r[1].days.size));
   container.innerHTML = `
+    <div class="rel-legend">
+      <span>${t('relLegendLabel')}</span>
+      <span class="rel-badge rel-solid">${t('relSolid')}</span>
+      <span class="rel-badge rel-probable">${t('relProbable')}</span>
+      <span class="rel-badge rel-verify">${t('relVerify')}</span>
+    </div>
     <table>
       <tr><th></th><th>${t('colSpecies')}</th><th>${t('colDaysSeen')}</th><th>${t('colTotal')}</th><th>${t('colConfidence')}</th><th>${t('colLastSeen')}</th></tr>
       ${rows.map(([name, d], i)=>{
@@ -2266,7 +2317,7 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
         return `
         <tr>
           <td><img class="sp-thumb-sm" id="${idPrefix}-thumb-${i}" style="display:none;"><span class="sp-thumb-sm sp-thumb-fallback" id="${idPrefix}-fallback-${i}">🐦</span></td>
-          <td><span class="sp-name-link" onclick='openSpeciesModal(${JSON.stringify(name)}, {days:${d.days.size}, total:${d.total}, last:${JSON.stringify(d.last)}, avgConf:${avgConf===null ? 'null' : avgConf.toFixed(1)}})'>${speciesLabel(name)}</span>${statusBadgeHTML(name)}</td>
+          <td><span class="sp-name-link" onclick='openSpeciesModal(${JSON.stringify(name)}, {days:${d.days.size}, total:${d.total}, last:${JSON.stringify(d.last)}, avgConf:${avgConf===null ? 'null' : avgConf.toFixed(1)}})'>${speciesLabel(name)}</span>${statusBadgeHTML(name)}${reliabilityBadgeHTML(d)}</td>
           <td>${d.days.size}<div class="freq-bar"><div class="freq-fill" style="width:${(d.days.size/maxDays*100)}%"></div></div></td>
           <td>${d.total}</td>
           <td class="mono" style="color:${avgConf===null ? 'var(--text-dim)' : avgConf<60 ? 'var(--danger)' : 'var(--text)'}">${avgConf===null ? '–' : avgConf.toFixed(0)+'%'}</td>
