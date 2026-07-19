@@ -430,6 +430,26 @@
   .rel-badge.rel-verify{background:var(--status-threatened-soft); color:var(--status-threatened);}
   .rel-legend{font-size:11px; color:var(--text-dim); margin:0 0 8px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
   .rel-legend .rel-badge{margin-left:0; cursor:default;}
+  .hab-chip{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle; cursor:help;}
+  .hab-chip.hab-plausible{background:var(--accent2-soft); color:var(--accent2);}
+  .hab-chip.hab-strike{background:var(--danger); color:#fff;}
+  .rel-notice{font-size:11px; color:var(--text-dim); margin:0 0 10px; font-style:italic;}
+  .verif-chip{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle;}
+  .verif-chip.verif-confirmed{background:var(--status-safe-soft); color:var(--status-safe);}
+  .verif-chip.verif-rejected{background:var(--accent-soft); color:var(--text-dim);}
+  tr.verif-row-rejected td{opacity:.5;}
+  tr.verif-row-rejected .sp-name-link{text-decoration:line-through;}
+  .modal-verify{margin-top:14px; padding-top:14px; border-top:1px solid var(--accent-soft);}
+  .verify-label{font-size:12px; color:var(--text-dim); margin-bottom:8px;}
+  .verify-state{font-size:13px; font-weight:700; margin-bottom:8px;}
+  .verify-state.verif-confirmed{color:var(--status-safe);}
+  .verify-state.verif-rejected{color:var(--danger);}
+  .verify-actions{display:flex; flex-wrap:wrap; gap:8px;}
+  .verify-btn{font-size:13px; font-weight:600; padding:6px 12px; border-radius:8px; border:1px solid var(--accent-soft); background:var(--card); color:var(--text); cursor:pointer;}
+  .verify-btn:hover{border-color:var(--accent);}
+  .verify-btn.active-confirm{background:var(--status-safe); color:#fff; border-color:var(--status-safe);}
+  .verify-btn.active-reject{background:var(--danger); color:#fff; border-color:var(--danger);}
+  .verify-btn.verify-reset{color:var(--text-dim);}
   .sp-name-link:hover{color:var(--accent);}
 
   /* BirdNET file dropzone */
@@ -784,6 +804,7 @@
       </div>
       <div class="modal-extract" id="modalExtract" data-i18n="loadingText">Lade Daten…</div>
       <div class="modal-attr" id="modalAttr"></div>
+      <div class="modal-verify" id="modalVerify"></div>
     </div>
   </div>
 </div>
@@ -926,6 +947,130 @@ function reliabilityBadgeHTML(d){
   return `<span class="rel-badge rel-${r.tier}" title="${tip.replace(/"/g,'&quot;')}">${label}</span>`;
 }
 
+// ── Habitat plausibility ─────────────────────────────────────────────────
+// The horizontal axis of the ID-triage matrix: does the land cover around the
+// recorder support a species? Only VERIFY-tier birds are re-judged — a weak
+// acoustic hit becomes "plausible" if its habitat is present, or "strike" if
+// it needs something the catchment doesn't have (e.g. Crossbill needs conifer).
+// Solid / probable birds are never overridden.
+//
+// >>> EDIT THIS ONCE per recorder zone. Replace `shares` with real CLC5 /
+// CORINE figures (area fraction of the detection catchment per category) and
+// set provisional:false. Until then verdicts render with a "?" and a notice.
+const HABITAT_PROFILE = {
+  provisional: true,
+  shares: { W:0.34, F:0.22, Wet:0.05, U:0.30, S:0.07, Wc:0.00 }
+  // W woodland · F farmland/open · Wet water/wetland · U settlement · S scrub · Wc conifer-bearing wood
+};
+const HABITAT_THRESHOLD = 0.03; // a category counts as "present" at ≥3% of area
+
+// Reviewed AVONET (Tobias et al. 2022, CC-BY) habitat seeds → catchment
+// categories. `conifer:true` means the ID specifically needs coniferous/mixed
+// forest, not just any woodland.
+const HABITAT_AFFINITY = {
+  Rauchschwalbe:['F','U'], Hausrotschwanz:['U'], Amsel:['W','U'], Blaumeise:['W','U'],
+  Kanadagans:['Wet'], Rabenkrähe:['F','U','W'], Buchfink:['W','U'], Zilpzalp:['W','S'],
+  Fichtenkreuzschnabel:{needs:['Wc'],conifer:true}, Mehlschwalbe:['U','F'], Wachtel:['F'],
+  Mauersegler:['U'], Gimpel:['W','S'], Eichelhäher:['W'], Teichrohrsänger:['Wet'],
+  Stieglitz:['F','U'], Grünspecht:['W','F'], Wacholderdrossel:['W','F'], Wintergoldhähnchen:['W'],
+  Buntspecht:['W'], Kohlmeise:['W','U'], Grünfink:['U','W'], Kernbeißer:['W'], Nebelkrähe:['F','U'],
+  Haussperling:['U'], Gelbspötter:['S','W'], Kolkrabe:['W','F'], Klappergrasmücke:['S'],
+  Bluthänfling:['F','S'], Elster:['U','F'], Stockente:['Wet'], Mittelspecht:['W'], Kleiber:['W'],
+  Rotkehlchen:['W','U'], Felsentaube:['U'], Saatkrähe:['F'], Gartenbaumläufer:['W'],
+  Grauschnäpper:['W','U'], Hohltaube:['W','F'], Türkentaube:['U'],
+  Waldbaumläufer:{needs:['Wc','W'],conifer:true}, Dohle:['U','W'],
+  Bachstelze:['F','U','Wet'], Ringeltaube:['W','F','U'], Zaunkönig:['W','S']
+};
+const HAB_WORD = {
+  W:{de:'Wald',en:'woodland'}, F:{de:'Feld',en:'farmland'}, Wet:{de:'Wasser',en:'water'},
+  U:{de:'Siedlung',en:'settlement'}, S:{de:'Gebüsch',en:'scrub'}, Wc:{de:'Nadelwald',en:'conifer'}
+};
+function habWord(cat){ const w=HAB_WORD[cat]; return w?w[lang]:cat; }
+
+function habitatPlausible(name){
+  const raw = HABITAT_AFFINITY[name];
+  if(!raw) return null;
+  const a = Array.isArray(raw) ? {needs:raw, conifer:false} : raw;
+  const shares = HABITAT_PROFILE.shares || {};
+  const has = c => (shares[c]||0) >= HABITAT_THRESHOLD;
+  if(a.conifer){
+    return has('Wc')
+      ? {present:true,  cat:'Wc'}
+      : {present:false, cat:'Wc'};
+  }
+  const met = a.needs.filter(has);
+  return met.length ? {present:true, cat:met[0]} : {present:false, cat:a.needs[0]};
+}
+
+// Only rendered for verify-tier rows.
+function habitatVerdictHTML(name, d){
+  if(reliabilityTier(d).tier !== 'verify') return '';
+  const v = habitatPlausible(name);
+  if(!v) return '';
+  const prov = HABITAT_PROFILE.provisional ? ' ?' : '';
+  if(v.present){
+    const lbl = t('habPlausible') + ' · ' + habWord(v.cat) + prov;
+    const tip = t('habTipPlausible').replace('{h}', habWord(v.cat));
+    return `<span class="hab-chip hab-plausible" title="${tip}">${lbl}</span>`;
+  }
+  const missing = habWord(v.cat);
+  const lbl = t('habStrike') + ' · ' + t('habNo') + ' ' + missing + prov;
+  const tip = t('habTipStrike').replace('{h}', missing);
+  return `<span class="hab-chip hab-strike" title="${tip}">${lbl}</span>`;
+}
+
+// ── Verification ─────────────────────────────────────────────────────────
+// The auto-flags (reliability + habitat) say what to check. Verification
+// records YOUR call after checking the clip / seeing the bird. A human
+// decision overrides the machine flags: a confirmed ID is settled regardless
+// of low confidence; a rejected one is struck from the real list.
+// Stored separately from entries (db key 'verifications') so it survives
+// re-imports, and carried in the backup.
+let verifications = {};   // { "Artname": {status:'confirmed'|'rejected', note, ts} }
+let currentModalSpecies = null;
+
+async function setVerification(name, status){
+  if(status === 'reset'){ delete verifications[name]; }
+  else {
+    const prev = verifications[name] || {};
+    verifications[name] = {status, note: prev.note || '', ts: Date.now()};
+  }
+  try{ await db.set('verifications', JSON.stringify(verifications)); }catch(e){}
+  renderModalVerify(name);
+  renderAll();
+}
+
+// What shows after the species name in the overview: a settled verification
+// state overrides the auto-flags; otherwise the reliability + habitat chips.
+function verifCellHTML(name, d){
+  const v = verifications[name];
+  if(v && v.status === 'confirmed')
+    return `<span class="verif-chip verif-confirmed" title="${t('verifConfirmedTip')}">✓ ${t('verifConfirmed')}</span>`;
+  if(v && v.status === 'rejected')
+    return `<span class="verif-chip verif-rejected" title="${t('verifRejectedTip')}">✗ ${t('verifRejected')}</span>`;
+  return reliabilityBadgeHTML(d) + habitatVerdictHTML(name, d);
+}
+
+// The confirm / reject / reset controls inside the species modal.
+function renderModalVerify(name){
+  const box = document.getElementById('modalVerify');
+  if(!box) return;
+  const v = verifications[name];
+  const status = v ? v.status : '';
+  const nameArg = JSON.stringify(name);
+  let state = '';
+  if(status === 'confirmed') state = `<div class="verify-state verif-confirmed">✓ ${t('verifConfirmedState')}</div>`;
+  else if(status === 'rejected') state = `<div class="verify-state verif-rejected">✗ ${t('verifRejectedState')}</div>`;
+  box.innerHTML = `
+    <div class="verify-label">${t('verifPrompt')}</div>
+    ${state}
+    <div class="verify-actions">
+      <button class="verify-btn ${status==='confirmed'?'active-confirm':''}" onclick='setVerification(${nameArg}, "confirmed")'>✓ ${t('verifConfirm')}</button>
+      <button class="verify-btn ${status==='rejected'?'active-reject':''}" onclick='setVerification(${nameArg}, "rejected")'>✗ ${t('verifReject')}</button>
+      ${status ? `<button class="verify-btn verify-reset" onclick='setVerification(${nameArg}, "reset")'>${t('verifReset')}</button>` : ''}
+    </div>`;
+}
+
 const I18N = {
   title:            {de:"SongbirdJournal", en:"SongbirdJournal"},
   streakLabel:      {de:"Aufnahmen geloggt", en:"Recordings logged"},
@@ -1000,6 +1145,22 @@ const I18N = {
   relTipSolid:      {de:"Belastbar — mehrfach nachgewiesen oder viele Detektionen.", en:"Solid — repeated across sessions or many detections."},
   relTipProbable:   {de:"Wahrscheinlich — einzelner, aber ordentlicher Nachweis.", en:"Probable — few detections but decent confidence."},
   relTipVerify:     {de:"Prüfen — wenige Nachweise mit niedriger Konfidenz. Originalclip anhören.", en:"Verify — few detections at low confidence. Check the original clip."},
+  habPlausible:     {de:"plausibel", en:"plausible"},
+  habStrike:        {de:"unplausibel", en:"strike"},
+  habNo:            {de:"kein", en:"no"},
+  habTipPlausible:  {de:"Passender Lebensraum im Umkreis vorhanden ({h}) — schwacher Nachweis wird dadurch plausibler.", en:"Matching habitat present nearby ({h}) — supports an otherwise weak detection."},
+  habTipStrike:     {de:"Benötigter Lebensraum fehlt im Umkreis ({h}) — Bestimmung fraglich.", en:"Required habitat absent from the catchment ({h}) — ID doubtful."},
+  habNotice:        {de:"Habitat-Prüfung nutzt eine vorläufige Landbedeckungsschätzung.", en:"Habitat check uses a provisional land-cover estimate."},
+  verifPrompt:      {de:"Bestimmung überprüft? Nach Anhören des Clips bzw. Sichtung eintragen.", en:"Verified this ID? Record your call after checking the clip or seeing the bird."},
+  verifConfirm:     {de:"Bestätigen", en:"Confirm"},
+  verifReject:      {de:"Verwerfen", en:"Reject"},
+  verifReset:       {de:"Zurücksetzen", en:"Reset"},
+  verifConfirmed:   {de:"bestätigt", en:"confirmed"},
+  verifRejected:    {de:"verworfen", en:"rejected"},
+  verifConfirmedState:{de:"Als bestätigt markiert.", en:"Marked as confirmed."},
+  verifRejectedState: {de:"Als Fehlbestimmung verworfen.", en:"Marked as a misidentification."},
+  verifConfirmedTip:{de:"Von dir bestätigt — überschreibt die automatischen Flags.", en:"Confirmed by you — overrides the automatic flags."},
+  verifRejectedTip: {de:"Von dir als Fehlbestimmung verworfen.", en:"Rejected by you as a misidentification."},
   panelHistoryTitle: {de:"Verlauf", en:"History"},
   loadingText:      {de:"Lade Daten…", en:"Loading data…"},
   speciesPlaceholder:{de:"Art (z.B. Amsel)", en:"Species (e.g. Blackbird)"},
@@ -1225,6 +1386,7 @@ async function getSpeciesInfo(name){
 
 async function openSpeciesModal(name, stats){
   const modal = document.getElementById('speciesModal');
+  currentModalSpecies = name;
   document.getElementById('modalName').innerHTML = speciesLabel(name) + statusBadgeHTML(name);
   document.getElementById('modalSci').textContent = '';
   document.getElementById('modalDays').textContent = stats.days;
@@ -1235,6 +1397,7 @@ async function openSpeciesModal(name, stats){
   document.getElementById('modalLast').textContent = stats.last;
   document.getElementById('modalExtract').textContent = t('loadingText');
   document.getElementById('modalAttr').innerHTML = '';
+  renderModalVerify(name);
   const img = document.getElementById('modalImg');
   img.style.display = 'none';
   modal.classList.add('open');
@@ -2226,10 +2389,11 @@ function nowStr(){
 }
 
 async function exportData(){
-  let entries = [], settings = null;
+  let entries = [], settings = null, verifs = null;
   try{ const r = await db.get('entries'); entries = JSON.parse(r.value); }catch(e){}
   try{ const r = await db.get('map-settings'); settings = JSON.parse(r.value); }catch(e){}
-  const blob = new Blob([JSON.stringify({entries, settings}, null, 2)], {type:'application/json'});
+  try{ const r = await db.get('verifications'); verifs = JSON.parse(r.value); }catch(e){}
+  const blob = new Blob([JSON.stringify({entries, settings, verifications: verifs}, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -2267,6 +2431,11 @@ function importData(event){
         showToast(t('alertImportOk') + ` (+${addedCount}${skippedCount ? ', ' + skippedCount + ' ' + t('importDuplicateNote') : ''})`);
       }
       if(data.settings) await db.set('map-settings', JSON.stringify(data.settings));
+      if(data.verifications && typeof data.verifications === 'object'){
+        let existingV = {};
+        try{ const rv = await db.get('verifications'); existingV = rv && rv.value ? JSON.parse(rv.value) : {}; }catch(err){ existingV = {}; }
+        await db.set('verifications', JSON.stringify(Object.assign(existingV, data.verifications)));
+      }
       loadSettings();
       renderAll();
     }catch(err){
@@ -2310,14 +2479,15 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
       <span class="rel-badge rel-probable">${t('relProbable')}</span>
       <span class="rel-badge rel-verify">${t('relVerify')}</span>
     </div>
+    ${(typeof HABITAT_PROFILE!=='undefined' && HABITAT_PROFILE.provisional) ? `<div class="rel-notice">${t('habNotice')}</div>` : ''}
     <table>
       <tr><th></th><th>${t('colSpecies')}</th><th>${t('colDaysSeen')}</th><th>${t('colTotal')}</th><th>${t('colConfidence')}</th><th>${t('colLastSeen')}</th></tr>
       ${rows.map(([name, d], i)=>{
         const avgConf = d.confidences.length ? (d.confidences.reduce((a,b)=>a+b,0)/d.confidences.length*100) : null;
         return `
-        <tr>
+        <tr class="${(verifications[name]||{}).status==='rejected' ? 'verif-row-rejected' : ''}">
           <td><img class="sp-thumb-sm" id="${idPrefix}-thumb-${i}" style="display:none;"><span class="sp-thumb-sm sp-thumb-fallback" id="${idPrefix}-fallback-${i}">🐦</span></td>
-          <td><span class="sp-name-link" onclick='openSpeciesModal(${JSON.stringify(name)}, {days:${d.days.size}, total:${d.total}, last:${JSON.stringify(d.last)}, avgConf:${avgConf===null ? 'null' : avgConf.toFixed(1)}})'>${speciesLabel(name)}</span>${statusBadgeHTML(name)}${reliabilityBadgeHTML(d)}</td>
+          <td><span class="sp-name-link" onclick='openSpeciesModal(${JSON.stringify(name)}, {days:${d.days.size}, total:${d.total}, last:${JSON.stringify(d.last)}, avgConf:${avgConf===null ? 'null' : avgConf.toFixed(1)}})'>${speciesLabel(name)}</span>${statusBadgeHTML(name)}${verifCellHTML(name, d)}</td>
           <td>${d.days.size}<div class="freq-bar"><div class="freq-fill" style="width:${(d.days.size/maxDays*100)}%"></div></div></td>
           <td>${d.total}</td>
           <td class="mono" style="color:${avgConf===null ? 'var(--text-dim)' : avgConf<60 ? 'var(--danger)' : 'var(--text)'}">${avgConf===null ? '–' : avgConf.toFixed(0)+'%'}</td>
@@ -2340,6 +2510,11 @@ async function renderAll(){
     const res = await db.get('entries');
     entries = res && res.value ? JSON.parse(res.value) : [];
   }catch(e){ entries = []; }
+
+  try{
+    const rv = await db.get('verifications');
+    verifications = rv && rv.value ? JSON.parse(rv.value) : {};
+  }catch(e){ verifications = {}; }
 
   const birdEntries = entries.filter(e=> (e.type || 'bird') === 'bird');
   const nightEntries = entries.filter(e=> e.type === 'night');
