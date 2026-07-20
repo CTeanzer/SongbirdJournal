@@ -905,8 +905,65 @@ const SPECIES_STATUS = {
 // Storage always keeps the German canonical name (so historical data stays
 // consistent across language switches). This just controls what's shown.
 function speciesLabel(name){
-  if(lang === 'en' && SPECIES_EN[name]) return SPECIES_EN[name] + ' (' + name + ')';
+  const live = EBIRD_DE_TO_EN[name];
+  const en = (lang === 'en') ? (live || SPECIES_EN[name]) : null;
+  if(en) return en + ' (' + name + ')';
   return name;
+}
+
+// ── eBird live translation ───────────────────────────────────────────────
+// Replaces manually maintained SPECIES_EN entries with a fetched German<->
+// English map, so a species new to the log translates without an index.html
+// edit. SPECIES_EN is never deleted — it's the fallback when the fetch
+// fails, is offline, or a name isn't in eBird's German list.
+//
+// Requires a free key from https://ebird.org/api/keygen — set it below.
+// The key travels in client-side code (this is a static site, no backend to
+// hide it behind); it's free and read-only, not a secret, but that's why.
+const EBIRD_API_KEY = ''; // <-- paste your free eBird API key here
+const EBIRD_CACHE_KEY = 'ebird-taxonomy-de-en';
+const EBIRD_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+let EBIRD_DE_TO_EN = {}; // populated from cache or fetch; empty = fall back to SPECIES_EN only
+
+async function loadEbirdTaxonomy(){
+  if(!EBIRD_API_KEY) return; // no key configured — silently rely on the static table
+
+  try{
+    const cached = await db.get(EBIRD_CACHE_KEY);
+    if(cached && cached.value){
+      const parsed = JSON.parse(cached.value);
+      if(Date.now() - parsed.ts < EBIRD_CACHE_MAX_AGE_MS){
+        EBIRD_DE_TO_EN = parsed.map;
+        return;
+      }
+    }
+  }catch(e){ /* no cache yet — fetch fresh */ }
+
+  try{
+    const headers = { 'X-eBirdApiToken': EBIRD_API_KEY };
+    const [deRes, enRes] = await Promise.all([
+      fetch('https://api.ebird.org/v2/ref/taxonomy/ebird?fmt=json&cat=species&locale=de', {headers}),
+      fetch('https://api.ebird.org/v2/ref/taxonomy/ebird?fmt=json&cat=species&locale=en', {headers})
+    ]);
+    if(!deRes.ok || !enRes.ok) throw new Error('eBird fetch failed: ' + deRes.status + '/' + enRes.status);
+    const [deList, enList] = await Promise.all([deRes.json(), enRes.json()]);
+
+    const enByCode = {};
+    enList.forEach(t => { enByCode[t.speciesCode] = t.comName; });
+
+    const map = {};
+    deList.forEach(t => {
+      const en = enByCode[t.speciesCode];
+      if(t.comName && en) map[t.comName] = en;
+    });
+
+    EBIRD_DE_TO_EN = map;
+    try{ await db.set(EBIRD_CACHE_KEY, JSON.stringify({ts: Date.now(), map})); }catch(e){}
+  }catch(e){
+    console.warn('eBird taxonomy fetch failed, using static SPECIES_EN fallback:', e);
+    // EBIRD_DE_TO_EN stays {} — speciesLabel() already falls back to SPECIES_EN
+  }
 }
 
 function statusBadgeHTML(name){
@@ -2197,7 +2254,7 @@ function toggleImport(){
 }
 
 function speciesDatalistHTML(id, list){
-  return `<datalist id="${id}">` + list.map(s=>`<option value="${s}">${s}${SPECIES_EN[s] ? ' (' + SPECIES_EN[s] + ')' : ''}</option>`).join('') + `</datalist>`;
+  return `<datalist id="${id}">` + list.map(s=>{ const en = EBIRD_DE_TO_EN[s] || SPECIES_EN[s]; return `<option value="${s}">${s}${en ? ' (' + en + ')' : ''}</option>`; }).join('') + `</datalist>`;
 }
 
 function addSpeciesRow(name='', count=1, confidence=''){
@@ -2581,6 +2638,7 @@ setMapLayer(currentMapLayer);
 if(!sightingsVisible) map.removeLayer(sightingsLayer);
 updateSightingsToggleLabel();
 loadSettings();
+loadEbirdTaxonomy().then(()=>{ if(Object.keys(EBIRD_DE_TO_EN).length) renderAll(); });
 document.getElementById('entryDate').value = todayStr();
 document.getElementById('entryTime').value = nowStr();
 addSpeciesRow();
