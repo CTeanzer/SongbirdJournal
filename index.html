@@ -431,6 +431,7 @@
   .status-badge.warn1{background:var(--status-near-soft); color:var(--status-near);}
   .status-badge.warn2{background:var(--status-threatened-soft); color:var(--status-threatened);}
   .status-badge.neo{background:var(--accent2-soft); color:var(--accent2);}
+  .status-badge.info{background:var(--bg-elev); color:var(--text-dim); border:1px solid var(--border);}
   .rel-badge{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle; cursor:help;}
   .rel-badge.rel-solid{background:var(--status-safe-soft); color:var(--status-safe);}
   .rel-badge.rel-probable{background:var(--status-near-soft); color:var(--status-near);}
@@ -883,7 +884,13 @@ const SPECIES_EN = {
   "Feldhase": "European Hare",
   "Waldkauz": "Tawny Owl",
   "Steinkauz": "Little Owl",
-  "Hauskatze": "Domestic Cat"
+  "Hauskatze": "Domestic Cat",
+
+  "Kolkrabe": "Common Raven",
+  "Türkentaube": "Eurasian Collared Dove",
+  "Turteltaube": "European Turtle Dove",
+  "Waldbaumläufer": "Eurasian Treecreeper",
+  "Grünes Heupferd": "Great Green Bush-Cricket"
 };
 
 const NIGHT_SPECIES = ["Fuchs","Igel","Reh","Wildschwein","Dachs","Steinmarder","Waschbär","Feldhase","Waldkauz","Steinkauz","Hauskatze"];
@@ -915,7 +922,14 @@ const SPECIES_STATUS = {
   "Bluthänfling": {cls:"warn2", de:"Gefährdet (Kat. 3)", en:"Threatened (Cat. 3)"},
   "Rauchschwalbe":{cls:"warn1", de:"Vorwarnliste", en:"Near threatened"},
   "Kanadagans":   {cls:"neo",   de:"Neozoon (invasiv)", en:"Invasive / non-native"},
-  "Waschbär":     {cls:"neo",   de:"Neozoon (invasiv)", en:"Invasive / non-native"}
+  "Waschbär":     {cls:"neo",   de:"Neozoon (invasiv)", en:"Invasive / non-native"},
+  "Turteltaube":  {cls:"warn2", de:"Stark gefährdet (Kat. 2)", en:"Severely threatened (Cat. 2)"},
+
+  // Not a threat category — BirdNET occasionally classifies non-avian sounds
+  // (this one's a bush-cricket). Flagged here so it doesn't quietly pass as a
+  // bird in the overview or inflate a day's species count without anyone
+  // noticing where the entry actually came from.
+  "Grünes Heupferd": {cls:"info", de:"Kein Vogel (Insekt)", en:"Not a bird (insect)"}
 };
 
 // Storage always keeps the German canonical name (so historical data stays
