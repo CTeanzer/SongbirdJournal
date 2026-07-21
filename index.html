@@ -200,6 +200,13 @@
     padding:28px 20px 18px; border-bottom:2px solid var(--accent);
     display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;
   }
+  .version-badge{
+    font-size:11px; font-weight:600; font-family:inherit; vertical-align:middle;
+    color:var(--text-dim); background:var(--bg-elev); border:1px solid var(--border);
+    border-radius:4px; padding:1px 6px; margin-left:8px; cursor:pointer;
+    font-variant-numeric:tabular-nums; line-height:1.6;
+  }
+  .version-badge:hover{color:var(--accent); border-color:var(--accent); filter:none;}
   header .eyebrow{color:var(--accent); font-size:12px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px; font-weight:700;}
   header h1{font-size:26px;}
   .backup-banner{
@@ -510,7 +517,8 @@
 <header>
   <div>
     <div class="eyebrow" id="headerCoords">–</div>
-    <h1 data-i18n="title">SongbirdJournal</h1>
+    <h1 style="display:inline;">SongbirdJournal</h1>
+    <button class="version-badge" id="versionBadge" onclick="openGuideModal()" title="Änderungen ansehen">v–</button>
   </div>
   <div style="display:flex; align-items:center; gap:16px;">
     <div style="display:flex; border:1px solid var(--border); border-radius:5px; overflow:hidden;">
@@ -812,6 +820,14 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ─────────────────────────────────────────────────────────────────────────
+// Version. Bump this ONE constant on every release; it flows to the title
+// attribute, the guide modal, and every backup file automatically. Scheme is
+// semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
+// breaking change to saved data. Pre-1.0 while it's still settling.
+const APP_VERSION = '0.9.0';
+const APP_VERSION_DATE = '2026-07-21';
+// ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
 const SPECIES_EN = {
@@ -1902,6 +1918,33 @@ function initDropzone(){
   window.addEventListener('drop', (e)=> e.preventDefault());
 }
 
+// Newest first. Keep entries short — one line per user-visible change. This is
+// what the version badge opens to, so it's the honest record of "what changed".
+const CHANGELOG = [
+  { v:'0.9.0', date:'2026-07-21', de:[
+      'Versionsnummern eingeführt (dieses Feld)',
+      'Karte: Sichtungen erscheinen jetzt zuverlässig beim Laden',
+      'Zonen- und Sichtungsfarben überarbeitet (besser auf Satellit lesbar)',
+      'Dunkelmodus, Zahnrad-Menü, zusammenklappbare Bereiche',
+      'Arten-Übersicht zusammengeführt (Alle / Vögel / Nachtkamera)',
+    ], en:[
+      'Introduced version numbers (this field)',
+      'Map: sightings now appear reliably on load',
+      'Reworked zone and sighting colours (readable on satellite)',
+      'Dark mode, gear menu, collapsible panels',
+      'Merged species overview (All / Birds / Night camera)',
+    ]},
+];
+
+function changelogHTML(){
+  const heading = lang === 'en' ? 'Changelog' : 'Änderungen';
+  const rows = CHANGELOG.map(r => {
+    const items = (lang === 'en' ? r.en : r.de).map(i => '<li>' + i + '</li>').join('');
+    return '<p style="margin-top:14px;"><b>v' + r.v + '</b> <span style="color:var(--text-dim);">· ' + r.date + '</span></p><ul>' + items + '</ul>';
+  }).join('');
+  return '<h4 style="margin-top:22px;">' + heading + '</h4>' + rows;
+}
+
 const GUIDE_CONTENT = {
   de: `
     <h4>Erste Schritte</h4>
@@ -1974,7 +2017,7 @@ const GUIDE_CONTENT = {
 };
 
 function openGuideModal(){
-  document.getElementById('guideModalBody').innerHTML = GUIDE_CONTENT[lang];
+  document.getElementById('guideModalBody').innerHTML = GUIDE_CONTENT[lang] + changelogHTML();
   document.getElementById('guideModal').classList.add('open');
 }
 function setReportPreset(preset){
@@ -2466,7 +2509,7 @@ async function exportData(){
   try{ const r = await db.get('entries'); entries = JSON.parse(r.value); }catch(e){}
   try{ const r = await db.get('map-settings'); settings = JSON.parse(r.value); }catch(e){}
   try{ const r = await db.get('verifications'); verifs = JSON.parse(r.value); }catch(e){}
-  const blob = new Blob([JSON.stringify({entries, settings, verifications: verifs}, null, 2)], {type:'application/json'});
+  const blob = new Blob([JSON.stringify({app:'SongbirdJournal', version:APP_VERSION, exportedAt:new Date().toISOString(), entries, settings, verifications: verifs}, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -2637,6 +2680,8 @@ updateHeaderCoords();
 setMapLayer(currentMapLayer);
 if(!sightingsVisible) map.removeLayer(sightingsLayer);
 updateSightingsToggleLabel();
+document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
+document.title = 'SongbirdJournal v' + APP_VERSION;
 loadSettings().then(()=>{
   // Map was built while the DOM was still settling — re-measure once layout is
   // real, then repaint so the tiles AND the sighting dots land correctly.
