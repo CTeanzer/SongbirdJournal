@@ -2189,7 +2189,7 @@ function toggleSightings(){
   sightingsVisible = !sightingsVisible;
   localStorage.setItem('birdlog:sightings', sightingsVisible ? 'on' : 'off');
   updateSightingsToggleLabel();
-  if(sightingsVisible){ sightingsLayer.addTo(map); } else { map.removeLayer(sightingsLayer); }
+  if(sightingsVisible){ sightingsLayer.addTo(map); renderAll(); } else { map.removeLayer(sightingsLayer); }
 }
 
 function updateSightingsToggleLabel(){
@@ -2637,7 +2637,13 @@ updateHeaderCoords();
 setMapLayer(currentMapLayer);
 if(!sightingsVisible) map.removeLayer(sightingsLayer);
 updateSightingsToggleLabel();
-loadSettings();
+loadSettings().then(()=>{
+  // Map was built while the DOM was still settling — re-measure once layout is
+  // real, then repaint so the tiles AND the sighting dots land correctly.
+  requestAnimationFrame(()=>{
+    if(map){ map.invalidateSize(); renderAll(); }
+  });
+});
 loadEbirdTaxonomy().then(()=>{ if(Object.keys(EBIRD_DE_TO_EN).length) renderAll(); });
 document.getElementById('entryDate').value = todayStr();
 document.getElementById('entryTime').value = nowStr();
