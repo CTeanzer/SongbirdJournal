@@ -441,6 +441,7 @@
   .hab-chip{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle; cursor:help;}
   .hab-chip.hab-plausible{background:var(--accent2-soft); color:var(--accent2);}
   .hab-chip.hab-strike{background:var(--danger); color:#fff;}
+  .hab-chip.hab-veto{background:var(--danger); color:#fff; box-shadow:inset 0 0 0 2px rgba(0,0,0,.35);}
   .rel-notice{font-size:11px; color:var(--text-dim); margin:0 0 10px; font-style:italic;}
   .verif-chip{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle;}
   .verif-chip.verif-confirmed{background:var(--status-safe-soft); color:var(--status-safe);}
@@ -826,8 +827,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.9.0';
-const APP_VERSION_DATE = '2026-07-21';
+const APP_VERSION = '0.10.0';
+const APP_VERSION_DATE = '2026-07-24';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -1091,6 +1092,7 @@ function habitatPlausible(name){
 
 // Only rendered for verify-tier rows.
 function habitatVerdictHTML(name, d){
+  if(areaVeto(name)) return '';   // range veto overrides habitat — no ecotone bonus
   if(reliabilityTier(d).tier !== 'verify') return '';
   const v = habitatPlausible(name);
   if(!v) return '';
@@ -1104,6 +1106,47 @@ function habitatVerdictHTML(name, d){
   const lbl = t('habStrike') + ' · ' + t('habNo') + ' ' + missing + prov;
   const tip = t('habTipStrike').replace('{h}', missing);
   return `<span class="hab-chip hab-strike" title="${tip}">${lbl}</span>`;
+}
+
+// ── Area veto (range axis) ───────────────────────────────────────────────
+// Third triage axis, independent of reliability AND habitat: a species whose
+// distribution range does not include the recorder is geographically
+// impossible here — no matter how confident BirdNET was, or how well the
+// local habitat fits. HARD veto: the ecotone/habitat bonus must NOT lift it
+// (an ecotone bundles species of the ADJACENT habitats; it does not move a
+// range boundary). The raw BirdNET label is kept; this only annotates and
+// suggests a re-reading. A human verification still overrides it (below).
+//
+// Seed table — analogous to AVONET seeding the habitat affinities, but with
+// distribution limits as the source. Add rules from a real range source
+// (Brutvogelatlas / eBird / GBIF range maps).
+const AREA_VETO_RULES = {
+  Nebelkrähe: {
+    // Carrion/Hooded Crow contact zone runs ~diagonally along the Elbe.
+    // Recorder (8.41°E) is well west → Carrion Crow (Rabenkrähe) range.
+    // NOTE: lng < 11 is a coarse meridian proxy — valid for THIS fixed
+    // recorder only; near the zone it needs the real contact-zone geometry.
+    applies: loc => loc.lng < 11.0,
+    reassignTo: 'Rabenkrähe',
+    probability: 0.90,
+  },
+};
+
+function areaVeto(name, loc){
+  loc = loc || center;                 // recorder = map centre; read lazily
+  const r = AREA_VETO_RULES[name];
+  return (r && r.applies(loc)) ? r : null;
+}
+
+// Rendered on ANY tier (unlike habitat, which is verify-only): a geographic
+// impossibility does not depend on how confident the detection was.
+function areaVetoHTML(name){
+  const r = areaVeto(name);
+  if(!r) return '';
+  const pct = Math.round(r.probability * 100);
+  const lbl = t('areaVeto') + ' → ' + speciesLabel(r.reassignTo) + ` (~${pct}%)`;
+  const tip = t('areaVetoTip').replace('{s}', speciesLabel(r.reassignTo)).replace('{p}', pct);
+  return `<span class="hab-chip hab-veto" title="${tip.replace(/"/g,'&quot;')}">⊘ ${lbl}</span>`;
 }
 
 // ── Verification ─────────────────────────────────────────────────────────
@@ -1135,7 +1178,7 @@ function verifCellHTML(name, d){
     return `<span class="verif-chip verif-confirmed" title="${t('verifConfirmedTip')}">✓ ${t('verifConfirmed')}</span>`;
   if(v && v.status === 'rejected')
     return `<span class="verif-chip verif-rejected" title="${t('verifRejectedTip')}">✗ ${t('verifRejected')}</span>`;
-  return reliabilityBadgeHTML(d) + habitatVerdictHTML(name, d);
+  return areaVetoHTML(name) + reliabilityBadgeHTML(d) + habitatVerdictHTML(name, d);
 }
 
 // The confirm / reject / reset controls inside the species modal.
@@ -1238,6 +1281,8 @@ const I18N = {
   habTipPlausible:  {de:"Passender Lebensraum im Umkreis vorhanden ({h}) — schwacher Nachweis wird dadurch plausibler.", en:"Matching habitat present nearby ({h}) — supports an otherwise weak detection."},
   habTipStrike:     {de:"Benötigter Lebensraum fehlt im Umkreis ({h}) — Bestimmung fraglich.", en:"Required habitat absent from the catchment ({h}) — ID doubtful."},
   habNotice:        {de:"Habitat-Prüfung nutzt eine vorläufige Landbedeckungsschätzung.", en:"Habitat check uses a provisional land-cover estimate."},
+  areaVeto:         {de:"Areal-Veto", en:"range veto"},
+  areaVetoTip:      {de:"Verbreitungsareal schließt den Standort aus — wahrscheinlich {s} (~{p}%). Ökoton-Bonus greift hier nicht.", en:"Distribution range excludes this location — likely {s} (~{p}%). The ecotone bonus does not apply."},
   verifPrompt:      {de:"Bestimmung überprüft? Nach Anhören des Clips bzw. Sichtung eintragen.", en:"Verified this ID? Record your call after checking the clip or seeing the bird."},
   verifConfirm:     {de:"Bestätigen", en:"Confirm"},
   verifReject:      {de:"Verwerfen", en:"Reject"},
@@ -1935,6 +1980,15 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.10.0', date:'2026-07-24', de:[
+      'Dritte Triage-Achse: Areal-Veto (Verbreitungsgrenze)',
+      'Nebelkrähe westlich der Elbe-Kontaktzone wird als ~90 % Rabenkrähe geflaggt',
+      'Areal-Veto überschreibt die Habitat-Plausibilität (kein Ökoton-Bonus)',
+    ], en:[
+      'Third triage axis: range veto (distribution limits)',
+      'Hooded Crow west of the Elbe contact zone flagged as ~90% Carrion Crow',
+      'Range veto overrides habitat plausibility (no ecotone bonus)',
+    ]},
   { v:'0.9.0', date:'2026-07-21', de:[
       'Versionsnummern eingeführt (dieses Feld)',
       'Karte: Sichtungen erscheinen jetzt zuverlässig beim Laden',
