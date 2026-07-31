@@ -848,7 +848,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.13.1';
+const APP_VERSION = '0.13.2';
 const APP_VERSION_DATE = '2026-07-31';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1157,9 +1157,12 @@ function habitatVerdictHTML(name, d){
 //                or a habitat nuance finer than the affinity table's
 //                categories capture). Informational, does NOT override
 //                habitat — the two axes just run side by side here.
-// Researched against regional (Niedersachsen/Weser-Ems) breeding-bird
-// literature for this fixed recorder site — still a hand-checked set of
-// cases that came up, not a general-purpose range dataset. See Methodik.
+// Researched against breeding-bird literature specific to this fixed
+// recorder's home region — a hand-checked set of cases that came up, not a
+// general-purpose range dataset. Gated to that region (inRecorderSeedRegion)
+// so it can't misfire for a deployment somewhere else entirely. See
+// Methodik. (Internal: source region is Niedersachsen/Bremen — not surfaced
+// in any user-facing text, keep it that way.)
 const AREA_VETO_RULES = {
   Nebelkrähe: {
     // Carrion/Hooded Crow contact zone runs ~diagonally along the Elbe.
@@ -1172,40 +1175,40 @@ const AREA_VETO_RULES = {
     probability: 0.90,
   },
   Kolkrabe: {
-    // Recovering from near-extirpation; Niedersachsen's population is
-    // concentrated in the eastern half (Lüneburger Heide, Leinebergland,
-    // ~0.18 pairs/km² statewide average per 2024 survey) — "die westliche
-    // Landschaft beherbergt den Kolkraben selten" (wildtiermanagement.com,
-    // 2024). NOTE: this is Lower-Saxony-specific evidence — NRW's population,
-    // for instance, recolonized differently and by now reaches the Dutch
-    // border, so this east/west split does NOT generalise even within
-    // Germany. Gated on inNiedersachsenBremen() for exactly that reason.
-    // Not a veto — the species genuinely occurs here now, just uncommonly —
-    // so no reassignment target.
+    // Recovering from near-extirpation; regional population is concentrated
+    // well east of this site (~0.18 pairs/km² statewide average per 2024
+    // survey) — scarce, not absent, in this landscape. NOTE: this evidence
+    // is specific to this recorder's home region — a neighbouring state's
+    // population recolonized from a different direction entirely, so this
+    // east/west split does NOT generalise even within Germany. Gated on
+    // inRecorderSeedRegion() for exactly that reason. Not a veto — the
+    // species genuinely occurs here now, just uncommonly — so no
+    // reassignment target.
     kind: 'scarce',
-    applies: loc => inNiedersachsenBremen(loc) && loc.lng < 9.5,
+    applies: loc => inRecorderSeedRegion(loc) && loc.lng < 9.5,
     note: 'noteKolkrabe',
   },
   Mittelspecht: {
     // Needs old oak specifically, not woodland generally — a finer read
-    // than the habitat table's single 'W' category captures. NABU
-    // Niedersachsen: "weite Teile der Marschen und der Geest... unbesiedelt"
-    // — and this recorder sits in exactly that Geest landscape (the
-    // Wildeshauser Geest is literally named for it). Core range is
-    // southeast Niedersachsen instead. Also Lower-Saxony-specific evidence —
-    // gated the same way as Kolkrabe, for the same reason.
+    // than the habitat table's single 'W' category captures. Regional
+    // source literature: largely absent from this landscape type; core
+    // range lies well to the southeast instead. Also region-specific
+    // evidence — gated the same way as Kolkrabe, for the same reason.
     kind: 'scarce',
-    applies: loc => inNiedersachsenBremen(loc) && loc.lng < 9.0,
+    applies: loc => inRecorderSeedRegion(loc) && loc.lng < 9.0,
     note: 'noteMittelspecht',
   },
 };
 
-// Coarse Niedersachsen+Bremen bounding box — NOT the real state border, just
-// enough to stop state-specific evidence from firing somewhere it was never
-// checked against. Rules sourced from Lower-Saxony-specific literature must
-// gate on this; rules sourced from Germany/Central-Europe-wide biogeography
-// (like the crow contact zone) don't need it.
-function inNiedersachsenBremen(loc){
+// Coarse bounding box around this recorder's home region — NOT a real
+// administrative border, just enough to stop region-specific evidence from
+// firing somewhere it was never checked against. Rules sourced from
+// literature local to this recorder's area must gate on this; rules sourced
+// from Germany/Central-Europe-wide biogeography (like the crow contact
+// zone) don't need it, since that evidence isn't location-specific to begin
+// with. (Internal note: box covers Niedersachsen/Bremen, where the source
+// literature for the gated rules below was checked.)
+function inRecorderSeedRegion(loc){
   return loc.lat >= 51.2 && loc.lat <= 53.9 && loc.lng >= 6.5 && loc.lng <= 11.6;
 }
 
@@ -1421,8 +1424,8 @@ const I18N = {
   areaVeto:         {de:"Areal-Veto", en:"range veto"},
   confuseFlag:      {de:"Verwechslungsgefahr", en:"possible confusion"},
   areaScarce:       {de:"regional selten hier", en:"regionally scarce here"},
-  noteKolkrabe:     {de:"Erholt sich von starker Verfolgung, Bestandsschwerpunkt in Niedersachsen liegt aber im Osten (Lüneburger Heide, Leinebergland) — westlich der Weser deutlich dünner. Kommt hier vor, nur seltener als im Osten des Landes.", en:"Recovering from historical persecution; Lower Saxony's population is concentrated in the east (Lüneburger Heide, Leinebergland) — noticeably thinner west of the Weser. Does occur here, just less often than in the east of the state."},
-  noteMittelspecht: {de:"Braucht speziell alte Eichenbestände, nicht Wald allgemein. Schwerpunkt liegt in Südost-Niedersachsen; die Geest — die Landschaft, in der dieser Standort liegt — ist laut NABU Niedersachsen großteils unbesiedelt.", en:"Needs old oak stands specifically, not woodland generally. Core range is southeast Lower Saxony; the Geest — the landscape this site sits in — is largely unoccupied per NABU Lower Saxony."},
+  noteKolkrabe:     {de:"Erholt sich von starker Verfolgung, ist in dieser Gegend aber deutlich seltener als weiter östlich. Kommt hier vor, nur nicht häufig.", en:"Recovering from historical persecution, but noticeably scarcer in this area than further east. Does occur here, just not often."},
+  noteMittelspecht: {de:"Braucht speziell alte Eichenbestände, nicht Wald allgemein. Diese Landschaft ist überwiegend unbesiedelt; der Schwerpunkt liegt deutlich weiter südöstlich.", en:"Needs old oak stands specifically, not woodland generally. This landscape is mostly unoccupied; the core range lies well to the southeast."},
   areaVetoTip:      {de:"Verbreitungsareal schließt den Standort aus — wahrscheinlich {s} (~{p}%). Ökoton-Bonus greift hier nicht.", en:"Distribution range excludes this location — likely {s} (~{p}%). The ecotone bonus does not apply."},
   verifPrompt:      {de:"Bestimmung überprüft? Nach Anhören des Clips bzw. Sichtung eintragen.", en:"Verified this ID? Record your call after checking the clip or seeing the bird."},
   verifConfirm:     {de:"Bestätigen", en:"Confirm"},
@@ -2346,17 +2349,22 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
-  { v:'0.13.1', date:'2026-07-31', de:[
-      'Fix: Kolkrabe/Mittelspecht-Regeln griffen weltweit nach Längengrad statt nur in Niedersachsen — die zugrundeliegenden Quellen sind landesspezifisch. Jetzt an eine grobe Niedersachsen/Bremen-Box gebunden.',
+  { v:'0.13.2', date:'2026-07-31', de:[
+      'Privatsphäre-Fix: die Bundesland-Nennung war noch im sichtbaren Tooltip der Kolkrabe/Mittelspecht-Badges sowie im Änderungslog sichtbar — jetzt nur noch als interner Code-Kommentar, nirgends mehr in der App selbst',
     ], en:[
-      'Fix: Common Raven/Middle Spotted Woodpecker rules fired anywhere by longitude instead of only in Lower Saxony — the underlying sources are state-specific. Now gated to a rough Niedersachsen/Bremen bounding box.',
+      'Privacy fix: the state name was still visible in the Common Raven/Middle Spotted Woodpecker badge tooltips and in the changelog — now only in an internal code comment, nowhere in the app itself',
+    ]},
+  { v:'0.13.1', date:'2026-07-31', de:[
+      'Fix: Kolkrabe/Mittelspecht-Regeln griffen weltweit nach Längengrad statt nur in der recherchierten Region — jetzt geografisch eingegrenzt.',
+    ], en:[
+      'Fix: Common Raven/Middle Spotted Woodpecker rules fired anywhere by longitude instead of only in the region they were researched for — now geographically bounded.',
     ]},
   { v:'0.13.0', date:'2026-07-31', de:[
-      'Areal-Veto erweitert: zwei Arten (Kolkrabe, Mittelspecht) als regional selten an diesem Standort-Typ ergänzt, gegen niedersächsische Fachliteratur geprüft',
+      'Areal-Veto erweitert: zwei Arten (Kolkrabe, Mittelspecht) als regional selten an diesem Standort-Typ ergänzt, gegen regionale Fachliteratur geprüft',
       'Neue Veto-Variante "regional selten" ohne Alternativ-Art, unterdrückt (anders als harte Vetos) nicht mehr den Habitat-Bonus',
       'Steinkauz geprüft: Standort liegt in einem bestätigten Verbreitungsschwerpunkt — keine Regel nötig',
     ], en:[
-      'Range veto extended: two species (Common Raven, Middle Spotted Woodpecker) added as regionally scarce at this landscape type, checked against Lower Saxony reference literature',
+      'Range veto extended: two species (Common Raven, Middle Spotted Woodpecker) added as regionally scarce at this landscape type, checked against regional reference literature',
       'New "regionally scarce" veto kind with no alternate species — unlike hard vetoes, does not suppress the habitat bonus',
       'Little Owl checked: site sits within a confirmed regional stronghold — no rule needed',
     ]},
@@ -2430,7 +2438,7 @@ const METHODOLOGY_CONTENT = {
     <ul>
       <li><strong>Zuverlässigkeit</strong> — reine Wiederholung: wie oft und wie stark eine Art über mehrere Sessions bestätigt wurde.</li>
       <li><strong>Habitat-Plausibilität</strong> — passt die Art zum Landschaftstyp am Standort? Artenaffinitäten sind mit <strong>AVONET</strong> (Tobias et al. 2022, <em>Ecology Letters</em>, CC-BY) angesetzt, Landbedeckung mit <strong>CLC5/CORINE</strong> (1–5 ha Auflösung, Deutschland) — bewusst feiner als das reguläre CORINE mit 25 ha Mindestkartiereinheit.</li>
-      <li><strong>Areal-Veto</strong> — liegt der Standort überhaupt im Verbreitungsgebiet der Art, oder ist er dort nur ungewöhnlich selten? Zwei Varianten: eine harte Umdeutung mit Alternativ-Art (Rabenkrähe/Nebelkrähe-Kontaktzone an der Elbe — gilt großräumig, nicht nur hier), oder ein weicherer Hinweis ohne Alternative, gestützt auf niedersächsische Fachliteratur (z.B. Kolkrabe, Mittelspecht) und deshalb nur innerhalb einer groben Niedersachsen/Bremen-Box aktiv — dieselben Regeln würden anderswo falsch greifen und wurden bewusst dagegen abgesichert. Ein handgeprüftes, wachsendes Set konkreter Fälle — kein automatisierter Verbreitungsdatensatz.</li>
+      <li><strong>Areal-Veto</strong> — liegt der Standort überhaupt im Verbreitungsgebiet der Art, oder ist er dort nur ungewöhnlich selten? Zwei Varianten: eine harte Umdeutung mit Alternativ-Art (Rabenkrähe/Nebelkrähe-Kontaktzone an der Elbe — ein großräumiges Muster, nicht standortspezifisch), oder ein weicherer Hinweis ohne Alternative, gestützt auf für diesen Aufnahmeort recherchierte regionale Fachliteratur (z.B. Kolkrabe, Mittelspecht). Diese standortspezifischen Regeln sind bewusst geografisch eingegrenzt, damit sie nicht versehentlich woanders greifen, wo sie nie geprüft wurden — für einen Standort in einer anderen Region bleiben sie einfach inaktiv, statt falsch zu urteilen. Ein handgeprüftes Set konkreter Fälle für diesen einen Standort — kein allgemeingültiger, übertragbarer Verbreitungsdatensatz.</li>
       <li><strong>Verwechslungsgefahr</strong> — klingt die Art einer anderen, am Standort bereits gut belegten Art zum Verwechseln ähnlich (z.B. die vier Tauben-Rufe)? Aktuell ebenfalls nur mit einer Gruppe angesetzt, aus einem tatsächlich beobachteten Muster in den eigenen Aufnahmen.</li>
     </ul>
 
@@ -2452,7 +2460,7 @@ const METHODOLOGY_CONTENT = {
     <ul>
       <li><strong>Reliability</strong> — pure repetition: how often and how strongly a species was confirmed across sessions.</li>
       <li><strong>Habitat plausibility</strong> — does the species fit the land cover at this site? Species affinities are seeded from <strong>AVONET</strong> (Tobias et al. 2022, <em>Ecology Letters</em>, CC-BY); land cover from <strong>CLC5/CORINE</strong> (1–5 ha resolution, Germany) — deliberately finer than standard CORINE's 25 ha minimum mapping unit.</li>
-      <li><strong>Range veto</strong> — is the site within the species' known range, or just unusually scarce there? Two kinds: a hard reassignment to an alternate species (the Carrion/Hooded Crow contact zone along the Elbe — a broad, cross-regional pattern, not specific to here), or a softer note with no alternate, grounded in Lower-Saxony-specific literature (e.g. Common Raven, Middle Spotted Woodpecker) and therefore only active within a rough Niedersachsen/Bremen bounding box — the same rules would misfire elsewhere and are deliberately guarded against that. A hand-checked, growing set of concrete cases — not an automated distribution dataset.</li>
+      <li><strong>Range veto</strong> — is the site within the species' known range, or just unusually scarce there? Two kinds: a hard reassignment to an alternate species (the Carrion/Hooded Crow contact zone along the Elbe — a broad, cross-regional pattern, not specific to this site), or a softer note with no alternate, grounded in literature researched for this specific recording site (e.g. Common Raven, Middle Spotted Woodpecker). These site-specific rules are deliberately bounded geographically so they can't accidentally fire somewhere they were never checked against — for a site elsewhere, they simply stay inactive rather than judging wrongly. A hand-checked set of concrete cases for this one site — not a general-purpose, portable distribution dataset.</li>
       <li><strong>Confusion risk</strong> — does the species sound similar to another, already well-established species at this site (e.g. the four dove calls)? Also currently seeded with just one group, from a pattern actually observed in this log's own recordings.</li>
     </ul>
 
