@@ -447,6 +447,7 @@
   .hab-chip.hab-strike{background:var(--danger); color:#fff;}
   .hab-chip.hab-veto{background:var(--danger); color:#fff; box-shadow:inset 0 0 0 2px rgba(0,0,0,.35);}
   .hab-chip.hab-confuse{background:var(--type-night-soft); color:var(--type-night);}
+  .hab-chip.hab-scarce{background:var(--status-near-soft); color:var(--status-near);}
   .rel-notice{font-size:11px; color:var(--text-dim); margin:0 0 10px; font-style:italic;}
   .verif-chip{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle;}
   .verif-chip.verif-confirmed{background:var(--status-safe-soft); color:var(--status-safe);}
@@ -847,7 +848,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.12.1';
+const APP_VERSION = '0.13.0';
 const APP_VERSION_DATE = '2026-07-31';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1118,7 +1119,8 @@ function habitatPlausible(name){
 
 // Only rendered for verify-tier rows.
 function habitatVerdictHTML(name, d){
-  if(areaVeto(name)) return '';   // range veto overrides habitat — no ecotone bonus
+  const _av = areaVeto(name);
+  if(_av && _av.kind === 'reassign') return '';   // hard veto overrides habitat — no ecotone bonus
   if(reliabilityTier(d).tier !== 'verify') return '';
   const v = habitatPlausible(name);
   if(!v) return '';
@@ -1146,15 +1148,50 @@ function habitatVerdictHTML(name, d){
 // Seed table — analogous to AVONET seeding the habitat affinities, but with
 // distribution limits as the source. Add rules from a real range source
 // (Brutvogelatlas / eBird / GBIF range maps).
+// Two kinds of rule share this table:
+//   'reassign' — a geographic impossibility with a clear alternate ID (the
+//                original crow case). Hard veto: overrides habitat entirely,
+//                because an ecotone bonus doesn't move a range boundary.
+//   'scarce'   — regionally uncommon at this landscape type, but no clean
+//                alternate species to reassign to (recovering populations,
+//                or a habitat nuance finer than the affinity table's
+//                categories capture). Informational, does NOT override
+//                habitat — the two axes just run side by side here.
+// Researched against regional (Niedersachsen/Weser-Ems) breeding-bird
+// literature for this fixed recorder site — still a hand-checked set of
+// cases that came up, not a general-purpose range dataset. See Methodik.
 const AREA_VETO_RULES = {
   Nebelkrähe: {
     // Carrion/Hooded Crow contact zone runs ~diagonally along the Elbe.
     // Recorder (8.41°E) is well west → Carrion Crow (Rabenkrähe) range.
     // NOTE: lng < 11 is a coarse meridian proxy — valid for THIS fixed
     // recorder only; near the zone it needs the real contact-zone geometry.
+    kind: 'reassign',
     applies: loc => loc.lng < 11.0,
     reassignTo: 'Rabenkrähe',
     probability: 0.90,
+  },
+  Kolkrabe: {
+    // Recovering from near-extirpation; Niedersachsen's population is
+    // concentrated in the eastern half (Lüneburger Heide, Leinebergland,
+    // ~0.18 pairs/km² statewide average per 2024 survey) — "die westliche
+    // Landschaft beherbergt den Kolkraben selten" (wildtiermanagement.com,
+    // 2024). Recorder sits well west of that core. Not a veto — the species
+    // genuinely occurs here now, just uncommonly — so no reassignment target.
+    kind: 'scarce',
+    applies: loc => loc.lng < 9.5,
+    note: 'noteKolkrabe',
+  },
+  Mittelspecht: {
+    // Needs old oak specifically, not woodland generally — a finer read
+    // than the habitat table's single 'W' category captures. NABU
+    // Niedersachsen: "weite Teile der Marschen und der Geest... unbesiedelt"
+    // — and this recorder sits in exactly that Geest landscape (the
+    // Wildeshauser Geest is literally named for it). Core range is
+    // southeast Niedersachsen instead.
+    kind: 'scarce',
+    applies: loc => loc.lng < 9.0,
+    note: 'noteMittelspecht',
   },
 };
 
@@ -1165,10 +1202,14 @@ function areaVeto(name, loc){
 }
 
 // Rendered on ANY tier (unlike habitat, which is verify-only): a geographic
-// impossibility does not depend on how confident the detection was.
+// read does not depend on how confident the detection was.
 function areaVetoHTML(name){
   const r = areaVeto(name);
   if(!r) return '';
+  if(r.kind === 'scarce'){
+    const tip = t(r.note).replace(/"/g,'&quot;');
+    return `<span class="hab-chip hab-scarce" title="${tip}">◐ ${t('areaScarce')}</span>`;
+  }
   const pct = Math.round(r.probability * 100);
   const lbl = t('areaVeto') + ' → ' + speciesLabel(r.reassignTo) + ` (~${pct}%)`;
   const tip = t('areaVetoTip').replace('{s}', speciesLabel(r.reassignTo)).replace('{p}', pct);
@@ -1365,6 +1406,9 @@ const I18N = {
   habNotice:        {de:"Habitat-Prüfung nutzt eine vorläufige Landbedeckungsschätzung.", en:"Habitat check uses a provisional land-cover estimate."},
   areaVeto:         {de:"Areal-Veto", en:"range veto"},
   confuseFlag:      {de:"Verwechslungsgefahr", en:"possible confusion"},
+  areaScarce:       {de:"regional selten hier", en:"regionally scarce here"},
+  noteKolkrabe:     {de:"Erholt sich von starker Verfolgung, Bestandsschwerpunkt in Niedersachsen liegt aber im Osten (Lüneburger Heide, Leinebergland) — westlich der Weser deutlich dünner. Kommt hier vor, nur seltener als im Osten des Landes.", en:"Recovering from historical persecution; Lower Saxony's population is concentrated in the east (Lüneburger Heide, Leinebergland) — noticeably thinner west of the Weser. Does occur here, just less often than in the east of the state."},
+  noteMittelspecht: {de:"Braucht speziell alte Eichenbestände, nicht Wald allgemein. Schwerpunkt liegt in Südost-Niedersachsen; die Geest — die Landschaft, in der dieser Standort liegt — ist laut NABU Niedersachsen großteils unbesiedelt.", en:"Needs old oak stands specifically, not woodland generally. Core range is southeast Lower Saxony; the Geest — the landscape this site sits in — is largely unoccupied per NABU Lower Saxony."},
   areaVetoTip:      {de:"Verbreitungsareal schließt den Standort aus — wahrscheinlich {s} (~{p}%). Ökoton-Bonus greift hier nicht.", en:"Distribution range excludes this location — likely {s} (~{p}%). The ecotone bonus does not apply."},
   verifPrompt:      {de:"Bestimmung überprüft? Nach Anhören des Clips bzw. Sichtung eintragen.", en:"Verified this ID? Record your call after checking the clip or seeing the bird."},
   verifConfirm:     {de:"Bestätigen", en:"Confirm"},
@@ -2288,6 +2332,15 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.13.0', date:'2026-07-31', de:[
+      'Areal-Veto erweitert: zwei Arten (Kolkrabe, Mittelspecht) als regional selten an diesem Standort-Typ ergänzt, gegen niedersächsische Fachliteratur geprüft',
+      'Neue Veto-Variante "regional selten" ohne Alternativ-Art, unterdrückt (anders als harte Vetos) nicht mehr den Habitat-Bonus',
+      'Steinkauz geprüft: Standort liegt in einem bestätigten Verbreitungsschwerpunkt — keine Regel nötig',
+    ], en:[
+      'Range veto extended: two species (Common Raven, Middle Spotted Woodpecker) added as regionally scarce at this landscape type, checked against Lower Saxony reference literature',
+      'New "regionally scarce" veto kind with no alternate species — unlike hard vetoes, does not suppress the habitat bonus',
+      'Little Owl checked: site sits within a confirmed regional stronghold — no rule needed',
+    ]},
   { v:'0.12.1', date:'2026-07-31', de:[
       'Bild-Fix: Wendehals und Brachvogel zeigten kein Bild — beide Wikipedia-Begriffsklärungsseiten (Wendehals: DDR-Sprachgebrauch; Brachvogel: eine Berliner Gaststätte), jetzt auf die richtigen Artartikel verlinkt',
     ], en:[
@@ -2358,7 +2411,7 @@ const METHODOLOGY_CONTENT = {
     <ul>
       <li><strong>Zuverlässigkeit</strong> — reine Wiederholung: wie oft und wie stark eine Art über mehrere Sessions bestätigt wurde.</li>
       <li><strong>Habitat-Plausibilität</strong> — passt die Art zum Landschaftstyp am Standort? Artenaffinitäten sind mit <strong>AVONET</strong> (Tobias et al. 2022, <em>Ecology Letters</em>, CC-BY) angesetzt, Landbedeckung mit <strong>CLC5/CORINE</strong> (1–5 ha Auflösung, Deutschland) — bewusst feiner als das reguläre CORINE mit 25 ha Mindestkartiereinheit.</li>
-      <li><strong>Areal-Veto</strong> — liegt der Standort überhaupt im Verbreitungsgebiet der Art? Aktuell eine einzelne, von Hand angesetzte Regel (Rabenkrähe/Nebelkrähe-Kontaktzone an der Elbe) als Startpunkt, kein vollständiger Verbreitungsdatensatz.</li>
+      <li><strong>Areal-Veto</strong> — liegt der Standort überhaupt im Verbreitungsgebiet der Art, oder ist er dort nur ungewöhnlich selten? Zwei Varianten: eine harte Umdeutung mit Alternativ-Art (Rabenkrähe/Nebelkrähe-Kontaktzone an der Elbe), oder ein weicherer Hinweis ohne Alternative (z.B. Kolkrabe und Mittelspecht — beide laut niedersächsischer Fachliteratur an diesem Standort-Typ regional selten). Ein handgeprüftes, wachsendes Set konkreter Fälle — kein automatisierter Verbreitungsdatensatz.</li>
       <li><strong>Verwechslungsgefahr</strong> — klingt die Art einer anderen, am Standort bereits gut belegten Art zum Verwechseln ähnlich (z.B. die vier Tauben-Rufe)? Aktuell ebenfalls nur mit einer Gruppe angesetzt, aus einem tatsächlich beobachteten Muster in den eigenen Aufnahmen.</li>
     </ul>
 
@@ -2380,7 +2433,7 @@ const METHODOLOGY_CONTENT = {
     <ul>
       <li><strong>Reliability</strong> — pure repetition: how often and how strongly a species was confirmed across sessions.</li>
       <li><strong>Habitat plausibility</strong> — does the species fit the land cover at this site? Species affinities are seeded from <strong>AVONET</strong> (Tobias et al. 2022, <em>Ecology Letters</em>, CC-BY); land cover from <strong>CLC5/CORINE</strong> (1–5 ha resolution, Germany) — deliberately finer than standard CORINE's 25 ha minimum mapping unit.</li>
-      <li><strong>Range veto</strong> — is the site even within the species' known range? Currently a single, hand-authored rule (the Carrion/Hooded Crow contact zone along the Elbe) as a starting point, not a full distribution dataset.</li>
+      <li><strong>Range veto</strong> — is the site within the species' known range, or just unusually scarce there? Two kinds: a hard reassignment to an alternate species (the Carrion/Hooded Crow contact zone along the Elbe), or a softer note with no alternate (e.g. Common Raven and Middle Spotted Woodpecker — both regionally scarce at this landscape type per Lower Saxony reference literature). A hand-checked, growing set of concrete cases — not an automated distribution dataset.</li>
       <li><strong>Confusion risk</strong> — does the species sound similar to another, already well-established species at this site (e.g. the four dove calls)? Also currently seeded with just one group, from a pattern actually observed in this log's own recordings.</li>
     </ul>
 
