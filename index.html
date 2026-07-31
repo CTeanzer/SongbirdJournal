@@ -847,7 +847,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.12.0';
+const APP_VERSION = '0.12.1';
 const APP_VERSION_DATE = '2026-07-31';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1476,7 +1476,12 @@ const speciesInfoCache = {};
 const WIKI_TITLE_OVERRIDE = {
   "Kleiber": "Kleiber (Art)",
   "Gimpel": "Gimpel (Art)",
-  "Wachtel": "Wachtel (Art)"
+  "Wachtel": "Wachtel (Art)",
+  // "Wendehals" the disambiguation page is dominated by the DDR political
+  // slang term (a "turncoat"), not the bird.
+  "Wendehals": "Wendehals (Vogel)",
+  // "Brachvogel" the disambiguation page is a defunct Berlin restaurant.
+  "Brachvogel": "Großer Brachvogel"
 };
 function wikiTitle(name){
   return WIKI_TITLE_OVERRIDE[name] || name;
@@ -2283,6 +2288,11 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.12.1', date:'2026-07-31', de:[
+      'Bild-Fix: Wendehals und Brachvogel zeigten kein Bild — beide Wikipedia-Begriffsklärungsseiten (Wendehals: DDR-Sprachgebrauch; Brachvogel: eine Berliner Gaststätte), jetzt auf die richtigen Artartikel verlinkt',
+    ], en:[
+      'Image fix: Wendehals and Brachvogel showed no photo — both hit Wikipedia disambiguation pages (Wendehals: East German political slang; Brachvogel: a Berlin restaurant), now linked to the correct species articles',
+    ]},
   { v:'0.12.0', date:'2026-07-31', de:[
       'Neuer "Methodik"-Bereich: Quellen und Grenzen aller vier Prüfachsen offengelegt (BirdNET, AVONET, CLC5, Rote Liste 2021, eBird)',
       'Header-Layout-Fix: Steuerzeile bricht auf schmalen Bildschirmen jetzt um, statt abgeschnitten zu werden',
