@@ -345,12 +345,14 @@
   .modal-stats b{display:block; font-size:18px; color:var(--accent); font-variant-numeric:tabular-nums;}
   .modal-stats span{font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em;}
   .modal-extract{font-size:13px; line-height:1.5; color:var(--text);}
-  #guideModalBody h4{margin:18px 0 6px; font-size:14px; color:var(--heading);}
-  #guideModalBody h4:first-child{margin-top:0;}
-  #guideModalBody ul{margin:6px 0; padding-left:20px;}
-  #guideModalBody li{margin-bottom:4px;}
-  #guideModalBody p{margin:6px 0;}
-  #guideModalBody code{background:var(--bg-elev); padding:1px 5px; border-radius:3px; font-size:12px;}
+  #guideModalBody h4, #methodologyModalBody h4{margin:18px 0 6px; font-size:14px; color:var(--heading);}
+  #guideModalBody h4:first-child, #methodologyModalBody h4:first-child{margin-top:0;}
+  #guideModalBody ul, #methodologyModalBody ul{margin:6px 0; padding-left:20px;}
+  #guideModalBody li, #methodologyModalBody li{margin-bottom:4px;}
+  #guideModalBody p, #methodologyModalBody p{margin:6px 0;}
+  #guideModalBody code, #methodologyModalBody code{background:var(--bg-elev); padding:1px 5px; border-radius:3px; font-size:12px;}
+  #methodologyModalBody .src-note{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  #methodologyModalBody .method-limit{background:var(--bg-elev); border-left:3px solid var(--accent); padding:10px 12px; margin-top:16px; border-radius:0 6px 6px 0; font-size:13px;}
   #reportModalBody h3{font-size:20px; margin-bottom:2px;}
   #reportModalBody h4{margin:18px 0 6px; font-size:14px; color:var(--heading);}
   #reportModalBody ul{margin:6px 0; padding-left:20px;}
@@ -525,12 +527,13 @@
     <h1 style="display:inline;">SongbirdJournal</h1>
     <button class="version-badge" id="versionBadge" onclick="openGuideModal()" title="Änderungen ansehen">v–</button>
   </div>
-  <div style="display:flex; align-items:center; gap:16px;">
+  <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-end;">
     <div style="display:flex; border:1px solid var(--border); border-radius:5px; overflow:hidden;">
       <button id="langDE" onclick="switchLang('de')" style="border:none; background:var(--accent); color:#fff; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:700;">DE</button>
       <button id="langEN" onclick="switchLang('en')" style="border:none; background:var(--bg-elev); color:var(--text-dim); padding:5px 10px; font-size:11px; cursor:pointer; font-weight:700;">EN</button>
     </div>
     <button onclick="openGuideModal()" data-i18n="guideBtn" style="background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:600;">Anleitung</button>
+    <button onclick="openMethodologyModal()" data-i18n="methodBtn" style="background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:600;">Methodik</button>
     <div class="streak"><span data-i18n="streakLabel">Aufnahmen geloggt</span><b id="streakCount">–</b></div>
     <div class="menu-wrap">
       <button class="menu-btn" id="menuBtn" onclick="toggleMenu(event)" aria-haspopup="true"
@@ -789,6 +792,13 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="methodologyModal" onclick="if(event.target===this) closeMethodologyModal()">
+  <div class="modal-card" style="max-width:640px; max-height:80vh;">
+    <button class="modal-close" onclick="closeMethodologyModal()">×</button>
+    <div class="modal-body" id="methodologyModalBody" style="font-size:14px; line-height:1.6;"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="guideModal" onclick="if(event.target===this) closeGuideModal()">
   <div class="modal-card" style="max-width:640px; max-height:80vh;">
     <button class="modal-close" onclick="closeGuideModal()">×</button>
@@ -837,7 +847,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.11.0';
+const APP_VERSION = '0.12.0';
 const APP_VERSION_DATE = '2026-07-31';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1267,6 +1277,7 @@ const I18N = {
   title:            {de:"SongbirdJournal", en:"SongbirdJournal"},
   streakLabel:      {de:"Aufnahmen geloggt", en:"Recordings logged"},
   guideBtn:         {de:"Anleitung", en:"Guide"},
+  methodBtn:        {de:"Methodik", en:"Methodology"},
   panelReportTitle: {de:"Bericht", en:"Report"},
   reportThisWeek:   {de:"Diese Woche", en:"This week"},
   reportThisMonth:  {de:"Dieser Monat", en:"This month"},
@@ -2228,7 +2239,7 @@ document.addEventListener('keydown', (e)=>{
   const pop = document.getElementById('menuPop');
   if(pop && pop.classList.contains('open')){ closeMenu(); return; }
   // Onboarding is deliberately excluded: it has to be acknowledged.
-  const dismissable = ['speciesModal', 'guideModal', 'reportModal'];
+  const dismissable = ['speciesModal', 'guideModal', 'methodologyModal', 'reportModal'];
   for(const id of dismissable){
     const el = document.getElementById(id);
     if(el && el.classList.contains('open')){
@@ -2272,6 +2283,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.12.0', date:'2026-07-31', de:[
+      'Neuer "Methodik"-Bereich: Quellen und Grenzen aller vier Prüfachsen offengelegt (BirdNET, AVONET, CLC5, Rote Liste 2021, eBird)',
+      'Header-Layout-Fix: Steuerzeile bricht auf schmalen Bildschirmen jetzt um, statt abgeschnitten zu werden',
+    ], en:[
+      'New "Methodology" section: sources and limits of all four triage axes disclosed (BirdNET, AVONET, CLC5, 2021 Red List, eBird)',
+      'Header layout fix: control row now wraps on narrow screens instead of clipping',
+    ]},
   { v:'0.11.0', date:'2026-07-31', de:[
       'Datei-Sicherung: Daten optional in eine echte lokale Datei spiegeln (übersteht gelöschte Browserdaten, Chrome/Edge Desktop)',
       'Vierte Triage-Achse: Verwechslungsgefahr (akustisch ähnliche Arten, z.B. Taubenrufe)',
@@ -2315,6 +2333,56 @@ function changelogHTML(){
   }).join('');
   return '<h4 style="margin-top:22px;">' + heading + '</h4>' + rows;
 }
+
+// Sources and reasoning behind every automated judgement the app makes — the
+// point isn't to look scientific, it's that every badge in the overview table
+// should be traceable to something a reader could go check themselves.
+const METHODOLOGY_CONTENT = {
+  de: `
+    <h4>Artenerkennung — BirdNET</h4>
+    <p>Die Artbestimmung selbst läuft nicht in dieser App, sondern in <strong>BirdNET</strong> (Kahl et al. 2021, K. Lisa Yang Center for Conservation Bioacoustics, Cornell Lab of Ornithology, mit TU Chemnitz), einem auf akustische Vogelerkennung trainierten Klassifikator. Die App liest nur das Ergebnis ein — eine Raven-Selektionstabelle mit Artname und Konfidenzwert pro Erkennung — und aggregiert es.</p>
+    <p class="src-note">Konfidenz ist BirdNETs eigener Score dafür, wie gut die Aufnahme zum trainierten Modell einer Art passt — kein unabhängig geprüfter Wahrscheinlichkeitswert für diesen konkreten Standort. Welche Modellversion eine gegebene Aufnahme verarbeitet hat, wird aktuell nicht mitgespeichert.</p>
+
+    <h4>Vier Prüfachsen, unabhängig voneinander</h4>
+    <p>Für Arten mit dünner Beleg-Lage prüft die App vier Dinge, die nichts miteinander zu tun haben — jede kann für sich allein etwas anmerken:</p>
+    <ul>
+      <li><strong>Zuverlässigkeit</strong> — reine Wiederholung: wie oft und wie stark eine Art über mehrere Sessions bestätigt wurde.</li>
+      <li><strong>Habitat-Plausibilität</strong> — passt die Art zum Landschaftstyp am Standort? Artenaffinitäten sind mit <strong>AVONET</strong> (Tobias et al. 2022, <em>Ecology Letters</em>, CC-BY) angesetzt, Landbedeckung mit <strong>CLC5/CORINE</strong> (1–5 ha Auflösung, Deutschland) — bewusst feiner als das reguläre CORINE mit 25 ha Mindestkartiereinheit.</li>
+      <li><strong>Areal-Veto</strong> — liegt der Standort überhaupt im Verbreitungsgebiet der Art? Aktuell eine einzelne, von Hand angesetzte Regel (Rabenkrähe/Nebelkrähe-Kontaktzone an der Elbe) als Startpunkt, kein vollständiger Verbreitungsdatensatz.</li>
+      <li><strong>Verwechslungsgefahr</strong> — klingt die Art einer anderen, am Standort bereits gut belegten Art zum Verwechseln ähnlich (z.B. die vier Tauben-Rufe)? Aktuell ebenfalls nur mit einer Gruppe angesetzt, aus einem tatsächlich beobachteten Muster in den eigenen Aufnahmen.</li>
+    </ul>
+
+    <h4>Gefährdungsstatus</h4>
+    <p>Rote-Liste-Kategorien stammen aus der <strong>Roten Liste der Brutvögel Deutschlands</strong>, 6. Fassung (Deutscher Rat für Vogelschutz / DDA, veröffentlicht Juni 2021). Nur ausgewählte, im Log tatsächlich aufgetauchte Arten sind hinterlegt — keine vollständige Liste aller ca. 259 deutschen Brutvogelarten.</p>
+
+    <h4>Übersetzung</h4>
+    <p>Deutsch→Englisch läuft primär über eine feste, von Hand gepflegte Tabelle. Optional lässt sich zusätzlich die <strong>eBird/Clements-Taxonomie</strong> (Cornell Lab of Ornithology) live anbinden, wenn ein eigener API-Key hinterlegt wird — sonst bleibt es bei der festen Tabelle.</p>
+
+    <div class="method-limit"><strong>Was das nicht ist:</strong> Kein verifizierter Artnachweis. Die Achsen oben markieren nur, welche Einträge einen zweiten Blick verdienen — sie ersetzen ihn nicht. Endgültig ist erst, was manuell bestätigt oder verworfen wurde (grüner Haken / rotes Kreuz in der Übersicht). Alles andere ist eine begründete, aber automatisierte Einschätzung.</div>
+  `,
+  en: `
+    <h4>Species identification — BirdNET</h4>
+    <p>The actual identification doesn't happen in this app — it happens in <strong>BirdNET</strong> (Kahl et al. 2021, K. Lisa Yang Center for Conservation Bioacoustics, Cornell Lab of Ornithology, with TU Chemnitz), a classifier trained on bird sound. This app only reads its output — a Raven selection table with a species name and confidence per detection — and aggregates it.</p>
+    <p class="src-note">Confidence is BirdNET's own score for how well the audio matches its trained model of a species' call — not an independently validated probability for this specific site. Which model version processed a given recording isn't currently stored.</p>
+
+    <h4>Four independent triage axes</h4>
+    <p>For thin-evidence species, the app checks four things that have nothing to do with each other — each can flag something on its own:</p>
+    <ul>
+      <li><strong>Reliability</strong> — pure repetition: how often and how strongly a species was confirmed across sessions.</li>
+      <li><strong>Habitat plausibility</strong> — does the species fit the land cover at this site? Species affinities are seeded from <strong>AVONET</strong> (Tobias et al. 2022, <em>Ecology Letters</em>, CC-BY); land cover from <strong>CLC5/CORINE</strong> (1–5 ha resolution, Germany) — deliberately finer than standard CORINE's 25 ha minimum mapping unit.</li>
+      <li><strong>Range veto</strong> — is the site even within the species' known range? Currently a single, hand-authored rule (the Carrion/Hooded Crow contact zone along the Elbe) as a starting point, not a full distribution dataset.</li>
+      <li><strong>Confusion risk</strong> — does the species sound similar to another, already well-established species at this site (e.g. the four dove calls)? Also currently seeded with just one group, from a pattern actually observed in this log's own recordings.</li>
+    </ul>
+
+    <h4>Conservation status</h4>
+    <p>Red List categories come from the <strong>Rote Liste der Brutvögel Deutschlands</strong>, 6th edition (Deutscher Rat für Vogelschutz / DDA, published June 2021). Only species that have actually appeared in this log are covered — not the full list of roughly 259 German breeding bird species.</p>
+
+    <h4>Translation</h4>
+    <p>German→English runs primarily off a fixed, hand-maintained table. Optionally, the <strong>eBird/Clements taxonomy</strong> (Cornell Lab of Ornithology) can be connected live if you supply your own API key — otherwise it stays on the fixed table.</p>
+
+    <div class="method-limit"><strong>What this is not:</strong> not a verified species record. The axes above only mark which entries deserve a second look — they don't replace it. Nothing is settled until it's manually confirmed or rejected (green check / red cross in the overview). Everything else is a reasoned but automated judgement.</div>
+  `,
+};
 
 const GUIDE_CONTENT = {
   de: `
@@ -2477,6 +2545,14 @@ function closeReportModal(){
 
 function closeGuideModal(){
   document.getElementById('guideModal').classList.remove('open');
+}
+
+function openMethodologyModal(){
+  document.getElementById('methodologyModalBody').innerHTML = METHODOLOGY_CONTENT[lang];
+  document.getElementById('methodologyModal').classList.add('open');
+}
+function closeMethodologyModal(){
+  document.getElementById('methodologyModal').classList.remove('open');
 }
 
 function checkOnboarding(){
