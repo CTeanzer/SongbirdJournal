@@ -432,6 +432,8 @@
   .status-badge.warn2{background:var(--status-threatened-soft); color:var(--status-threatened);}
   .status-badge.neo{background:var(--accent2-soft); color:var(--accent2);}
   .status-badge.info{background:var(--bg-elev); color:var(--text-dim); border:1px solid var(--border);}
+  .datetime-hint-warn{color:var(--status-near);}
+  .datetime-hint-ok{color:var(--status-safe);}
   .rel-badge{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle; cursor:help;}
   .rel-badge.rel-solid{background:var(--status-safe-soft); color:var(--status-safe);}
   .rel-badge.rel-probable{background:var(--status-near-soft); color:var(--status-near);}
@@ -442,6 +444,7 @@
   .hab-chip.hab-plausible{background:var(--accent2-soft); color:var(--accent2);}
   .hab-chip.hab-strike{background:var(--danger); color:#fff;}
   .hab-chip.hab-veto{background:var(--danger); color:#fff; box-shadow:inset 0 0 0 2px rgba(0,0,0,.35);}
+  .hab-chip.hab-confuse{background:var(--type-night-soft); color:var(--type-night);}
   .rel-notice{font-size:11px; color:var(--text-dim); margin:0 0 10px; font-style:italic;}
   .verif-chip{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle;}
   .verif-chip.verif-confirmed{background:var(--status-safe-soft); color:var(--status-safe);}
@@ -545,6 +548,12 @@
           <span data-i18n="importBtn">Importieren</span>
           <input type="file" accept=".json" onchange="closeMenu(); importData(event)" style="display:none;">
         </label>
+        <div id="fileSyncSection" style="display:none;">
+          <div class="menu-sep"></div>
+          <div class="menu-label" data-i18n="menuFileSyncLabel">Datei-Sicherung</div>
+          <div id="fileSyncStatus" style="padding:4px 10px 6px; font-size:11px; color:var(--text-dim); line-height:1.5;"></div>
+          <button id="fileSyncAction" onclick="handleFileSyncClick()"></button>
+        </div>
         <div class="menu-sep"></div>
         <div class="menu-label" data-i18n="menuThemeLabel">Darstellung</div>
         <div class="theme-row">
@@ -592,6 +601,7 @@
         <label class="field-label" data-i18n="fieldTime">Uhrzeit</label>
         <input type="time" id="entryTime">
       </div>
+      <div id="dateTimeHint" style="display:none; flex-basis:100%; font-size:11px; margin-top:2px;"></div>
       <div class="slider-group" id="durationGroup">
         <label class="field-label" data-i18n="fieldDuration">Dauer (Min)</label>
         <input type="number" id="entryDuration" value="6" min="1">
@@ -827,8 +837,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.10.0';
-const APP_VERSION_DATE = '2026-07-24';
+const APP_VERSION = '0.11.0';
+const APP_VERSION_DATE = '2026-07-31';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -891,7 +901,11 @@ const SPECIES_EN = {
   "Türkentaube": "Eurasian Collared Dove",
   "Turteltaube": "European Turtle Dove",
   "Waldbaumläufer": "Eurasian Treecreeper",
-  "Grünes Heupferd": "Great Green Bush-Cricket"
+  "Grünes Heupferd": "Great Green Bush-Cricket",
+  "Brachvogel": "Eurasian Curlew",
+  "Heckenbraunelle": "Dunnock",
+  "Uferschwalbe": "Sand Martin",
+  "Wendehals": "Eurasian Wryneck"
 };
 
 const NIGHT_SPECIES = ["Fuchs","Igel","Reh","Wildschwein","Dachs","Steinmarder","Waschbär","Feldhase","Waldkauz","Steinkauz","Hauskatze"];
@@ -930,7 +944,9 @@ const SPECIES_STATUS = {
   // (this one's a bush-cricket). Flagged here so it doesn't quietly pass as a
   // bird in the overview or inflate a day's species count without anyone
   // noticing where the entry actually came from.
-  "Grünes Heupferd": {cls:"info", de:"Kein Vogel (Insekt)", en:"Not a bird (insect)"}
+  "Grünes Heupferd": {cls:"info", de:"Kein Vogel (Insekt)", en:"Not a bird (insect)"},
+  "Wendehals":   {cls:"warn2", de:"Gefährdet (Kat. 3)", en:"Threatened (Cat. 3)"},
+  "Brachvogel":  {cls:"warn2", de:"Vom Aussterben bedroht (Kat. 1)", en:"Critically endangered (Cat. 1)"}
 };
 
 // Storage always keeps the German canonical name (so historical data stays
@@ -1149,6 +1165,51 @@ function areaVetoHTML(name){
   return `<span class="hab-chip hab-veto" title="${tip.replace(/"/g,'&quot;')}">⊘ ${lbl}</span>`;
 }
 
+// ── Confusion groups (acoustic axis) ─────────────────────────────────────
+// Fourth triage axis, orthogonal to reliability/habitat/range: some species
+// simply SOUND alike, so a thin-evidence ID within a confusable cluster is
+// more likely to be the cluster's common member misheard than a genuine rare
+// one. Seeded from a real pattern found in this log — the four "Taube" calls
+// collapsed to near-identical low-confidence hits while Ringeltaube alone
+// stayed consistently solid. Same spirit as AREA_VETO_RULES: a starting seed,
+// not a claim of completeness. Add more groups as real confusion turns up.
+const CONFUSION_GROUPS = [
+  {
+    members: ['Ringeltaube', 'Hohltaube', 'Türkentaube', 'Turteltaube'],
+    note: 'Tauben-Rufe klingen sich sehr ähnlich; BirdNET verwechselt sie besonders bei kurzen oder leisen Aufnahmen.',
+  },
+];
+
+const TIER_RANK = {none:0, verify:1, probable:2, solid:3};
+
+// Only meaningful with the full cross-species aggregate for this table (agg),
+// since "confusable with what's actually well-established here" requires
+// comparing this species' evidence against its group-mates', not judging it
+// alone the way area/habitat do.
+function confusionFlag(name, agg){
+  const group = CONFUSION_GROUPS.find(g => g.members.includes(name));
+  if(!group) return null;
+  const own = reliabilityTier(agg[name]);
+  if(own.tier !== 'verify') return null;   // only worth flagging when thin
+  let best = null;
+  for(const m of group.members){
+    if(m === name || !agg[m]) continue;
+    const t = reliabilityTier(agg[m]);
+    if(TIER_RANK[t.tier] > TIER_RANK[own.tier] && (!best || TIER_RANK[t.tier] > TIER_RANK[best.tier])){
+      best = {name:m, tier:t.tier};
+    }
+  }
+  return best ? {suggest: best.name, note: group.note} : null;
+}
+
+function confusionFlagHTML(name, agg){
+  const f = confusionFlag(name, agg);
+  if(!f) return '';
+  const lbl = t('confuseFlag') + ' → ' + speciesLabel(f.suggest) + '?';
+  const tip = f.note.replace(/"/g,'&quot;');
+  return `<span class="hab-chip hab-confuse" title="${tip}">≈ ${lbl}</span>`;
+}
+
 // ── Verification ─────────────────────────────────────────────────────────
 // The auto-flags (reliability + habitat) say what to check. Verification
 // records YOUR call after checking the clip / seeing the bird. A human
@@ -1172,13 +1233,14 @@ async function setVerification(name, status){
 
 // What shows after the species name in the overview: a settled verification
 // state overrides the auto-flags; otherwise the reliability + habitat chips.
-function verifCellHTML(name, d){
+function verifCellHTML(name, d, agg){
   const v = verifications[name];
   if(v && v.status === 'confirmed')
     return `<span class="verif-chip verif-confirmed" title="${t('verifConfirmedTip')}">✓ ${t('verifConfirmed')}</span>`;
   if(v && v.status === 'rejected')
     return `<span class="verif-chip verif-rejected" title="${t('verifRejectedTip')}">✗ ${t('verifRejected')}</span>`;
-  return areaVetoHTML(name) + reliabilityBadgeHTML(d) + habitatVerdictHTML(name, d);
+  const confuse = agg ? confusionFlagHTML(name, agg) : '';
+  return areaVetoHTML(name) + reliabilityBadgeHTML(d) + habitatVerdictHTML(name, d) + confuse;
 }
 
 // The confirm / reject / reset controls inside the species modal.
@@ -1232,6 +1294,15 @@ const I18N = {
   entryDeleted:     {de:"Aufnahme gelöscht", en:"Recording deleted"},
   undoBtn:          {de:"Rückgängig", en:"Undo"},
   entryRestored:    {de:"Aufnahme wiederhergestellt", en:"Recording restored"},
+  menuFileSyncLabel:{de:"Datei-Sicherung", en:"File backup"},
+  fsConnect:        {de:"Datei verbinden…", en:"Connect a file…"},
+  fsReconnect:      {de:"Erneut verbinden", en:"Reconnect"},
+  fsDisconnect:     {de:"Trennen", en:"Disconnect"},
+  fsConnectedTo:    {de:"Verbunden: {f}", en:"Connected: {f}"},
+  fsSyncedAt:        {de:"Zuletzt gesichert: {t}", en:"Last saved: {t}"},
+  fsNeedsPermission: {de:"Verbindung zu \"{f}\" unterbrochen — Zugriff erneut erlauben.", en:"Connection to \"{f}\" lost — please re-allow access."},
+  fsError:          {de:"Sicherung fehlgeschlagen — Datei ggf. verschoben/gelöscht.", en:"Backup failed — file may have moved or been deleted."},
+  fsExplain:        {de:"Spiegelt jede Änderung zusätzlich in eine echte Datei — überlebt gelöschte Browserdaten. Am besten in einen synchronisierten Ordner (Dropbox/iCloud/OneDrive) legen.", en:"Mirrors every change into a real file — survives a wiped browser. Best placed in a synced folder (Dropbox/iCloud/OneDrive)."},
   importBtn:        {de:"Importieren", en:"Import"},
   panelMapTitle:    {de:"Standort &amp; Zonen", en:"Location &amp; Zones"},
   zoneATag:         {de:"Zone A · Garten", en:"Zone A · Garden"},
@@ -1282,6 +1353,7 @@ const I18N = {
   habTipStrike:     {de:"Benötigter Lebensraum fehlt im Umkreis ({h}) — Bestimmung fraglich.", en:"Required habitat absent from the catchment ({h}) — ID doubtful."},
   habNotice:        {de:"Habitat-Prüfung nutzt eine vorläufige Landbedeckungsschätzung.", en:"Habitat check uses a provisional land-cover estimate."},
   areaVeto:         {de:"Areal-Veto", en:"range veto"},
+  confuseFlag:      {de:"Verwechslungsgefahr", en:"possible confusion"},
   areaVetoTip:      {de:"Verbreitungsareal schließt den Standort aus — wahrscheinlich {s} (~{p}%). Ökoton-Bonus greift hier nicht.", en:"Distribution range excludes this location — likely {s} (~{p}%). The ecotone bonus does not apply."},
   verifPrompt:      {de:"Bestimmung überprüft? Nach Anhören des Clips bzw. Sichtung eintragen.", en:"Verified this ID? Record your call after checking the clip or seeing the bird."},
   verifConfirm:     {de:"Bestätigen", en:"Confirm"},
@@ -1326,6 +1398,8 @@ const I18N = {
   scopeBird:        {de:"Vögel", en:"Birds"},
   scopeNight:       {de:"Nachtkamera", en:"Night camera"},
   entrySaved:       {de:"Aufnahme gespeichert", en:"Recording saved"},
+  dtGuessed:        {de:"Datum/Zeit aus Dateiname übernommen: {v} — bitte prüfen.", en:"Date/time read from filename: {v} — please check."},
+  dtNotGuessed:      {de:"Datum & Zeit nicht in der Datei gefunden — Felder zeigen noch \"jetzt\". Bei mehreren Uploads hintereinander bitte VOR dem Speichern korrigieren.", en:"Couldn't read date/time from the file — fields still show \"now\". If you're importing several files in a row, please correct these BEFORE saving each one."},
   sortFreq:         {de:"Häufigkeit", en:"Frequency"},
   sortName:         {de:"Name", en:"Name"},
   sortRecent:       {de:"Zuletzt gesehen", en:"Last seen"},
@@ -1373,6 +1447,7 @@ function switchLang(l){
     if(nums[1]){ nums[1].title = t('confidenceTitle'); }
   });
   updateSightingsToggleLabel();
+  if(typeof renderFileSyncUI === 'function') renderFileSyncUI();
   renderAll();
 }
 
@@ -1408,10 +1483,190 @@ const localDB = {
   },
   async set(key, value){
     localStorage.setItem('birdlog:' + key, value);
+    // localStorage write already succeeded — file-sync is a mirror on top,
+    // never a precondition for saving. It schedules itself only if a file is
+    // actually connected (checked inside scheduleWrite).
+    if(typeof fileSync !== 'undefined') fileSync.scheduleWrite();
     return {key, value, shared:false};
   }
 };
 const db = hasArtifactStorage ? window.storage : localDB;
+
+// ── File-backed durability ───────────────────────────────────────────────
+// localStorage is the only home for the data on GitHub Pages, and it dies on
+// any cache clear with zero warning. This connects a real file on disk (via
+// the File System Access API) as a mirror: every save also writes the full
+// state to that file. Put the file in a synced folder (Dropbox/iCloud/OneDrive)
+// and it survives a wiped browser AND follows you to another device — without
+// adding a server, an account, or touching the "keine Cloud" promise: it's
+// still the user's own file, on their own disk, synced by their own choice.
+// Chrome/Edge desktop only (the underlying API isn't available in Safari or
+// on iOS as of this writing, and not inside a sandboxed claude.ai artifact
+// either) — everywhere else, manual export/import remains the safety net.
+const FILE_SYNC_DEBOUNCE_MS = 800;
+
+function idbOpen(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open('birdlog-filesync', 1);
+    req.onupgradeneeded = ()=> req.result.createObjectStore('handles');
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+async function idbGet(key){
+  const db = await idbOpen();
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction('handles', 'readonly').objectStore('handles').get(key);
+    tx.onsuccess = ()=> resolve(tx.result || null);
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+async function idbSet(key, val){
+  const db = await idbOpen();
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction('handles', 'readwrite').objectStore('handles').put(val, key);
+    tx.onsuccess = ()=> resolve();
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+async function idbDel(key){
+  const db = await idbOpen();
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction('handles', 'readwrite').objectStore('handles').delete(key);
+    tx.onsuccess = ()=> resolve();
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+
+const fileSync = {
+  supported: !hasArtifactStorage && typeof window.showSaveFilePicker === 'function',
+  handle: null,
+  status: 'disconnected',   // disconnected | connected | needs-permission | error
+  fileName: null,
+  lastSyncAt: null,
+  _writeTimer: null,
+
+  async currentStateJSON(){
+    let entries = [], settings = null, verifs = null;
+    try{ const r = await db.get('entries'); entries = JSON.parse(r.value); }catch(e){}
+    try{ const r = await db.get('map-settings'); settings = JSON.parse(r.value); }catch(e){}
+    try{ const r = await db.get('verifications'); verifs = JSON.parse(r.value); }catch(e){}
+    return {app:'SongbirdJournal', version:APP_VERSION, exportedAt:new Date().toISOString(), entries, settings, verifications: verifs};
+  },
+
+  // Union by entry id — never lets either side's entries disappear. Same
+  // policy as the existing manual import merge, applied automatically.
+  mergeEntries(a, b){
+    const merged = new Map();
+    (a || []).forEach(e => merged.set(e.id, e));
+    (b || []).forEach(e => merged.set(e.id, e));
+    return Array.from(merged.values());
+  },
+
+  async init(){
+    if(!this.supported) return;
+    let stored;
+    try{ stored = await idbGet('dataFile'); }catch(e){ return; }
+    if(!stored) return;
+    this.handle = stored;
+    this.fileName = stored.name;
+    // Never prompt on load without a click — browsers won't honour it anyway.
+    // queryPermission only checks; it doesn't ask.
+    let perm;
+    try{ perm = await this.handle.queryPermission({mode:'readwrite'}); }catch(e){ perm = 'denied'; }
+    if(perm === 'granted'){
+      await this._reconcileFromFile();
+      this.status = 'connected';
+    } else {
+      this.status = 'needs-permission';
+    }
+  },
+
+  // Click-triggered: opens the file picker, then merges whatever's already in
+  // that file (if anything) with what's in this browser right now, so
+  // connecting a file that already has data from another device adds to the
+  // local set instead of overwriting it either direction.
+  async connect(){
+    if(!this.supported) return false;
+    let handle;
+    try{
+      handle = await window.showSaveFilePicker({
+        suggestedName: 'songbirdjournal-data.json',
+        types: [{description:'JSON', accept:{'application/json':['.json']}}],
+      });
+    }catch(e){ return false; }   // user cancelled — not an error
+    this.handle = handle;
+    this.fileName = handle.name;
+    try{ await idbSet('dataFile', handle); }catch(e){}
+    await this._reconcileFromFile();
+    this.status = 'connected';
+    return true;
+  },
+
+  async reconnect(){
+    if(!this.handle) return false;
+    try{
+      const perm = await this.handle.requestPermission({mode:'readwrite'});
+      if(perm !== 'granted'){ this.status = 'needs-permission'; return false; }
+    }catch(e){ this.status = 'needs-permission'; return false; }
+    await this._reconcileFromFile();
+    this.status = 'connected';
+    return true;
+  },
+
+  async disconnect(){
+    this.handle = null;
+    this.fileName = null;
+    this.status = 'disconnected';
+    try{ await idbDel('dataFile'); }catch(e){}
+  },
+
+  async _reconcileFromFile(){
+    let fileData = null;
+    try{
+      const f = await this.handle.getFile();
+      const text = await f.text();
+      if(text.trim()) fileData = JSON.parse(text);
+    }catch(e){ fileData = null; }   // empty/new/unreadable file — treat as blank
+
+    if(fileData && Array.isArray(fileData.entries)){
+      let localEntries = [];
+      try{ const r = await db.get('entries'); localEntries = JSON.parse(r.value); }catch(e){}
+      const merged = this.mergeEntries(localEntries, fileData.entries);
+      await db.set('entries', JSON.stringify(merged));
+      if(fileData.settings) await db.set('map-settings', JSON.stringify(fileData.settings));
+      if(fileData.verifications){
+        let existingV = {};
+        try{ const rv = await db.get('verifications'); existingV = rv && rv.value ? JSON.parse(rv.value) : {}; }catch(e){}
+        await db.set('verifications', JSON.stringify(Object.assign({}, fileData.verifications, existingV)));
+      }
+    }
+    await this._writeNow();   // write the merged/adopted result straight back
+  },
+
+  async _writeNow(){
+    if(!this.handle) return;
+    try{
+      const data = await this.currentStateJSON();
+      const writable = await this.handle.createWritable();
+      await writable.write(JSON.stringify(data, null, 2));
+      await writable.close();
+      this.status = 'connected';
+      this.lastSyncAt = Date.now();
+    }catch(e){
+      this.status = 'error';
+      console.error('file-sync write failed', e);
+    }
+  },
+
+  // Coalesces rapid successive saves (e.g. adding several species rows) into
+  // one disk write instead of one per keystroke-equivalent.
+  scheduleWrite(){
+    if(this.status !== 'connected' && this.status !== 'error') return;
+    clearTimeout(this._writeTimer);
+    this._writeTimer = setTimeout(()=> this._writeNow(), FILE_SYNC_DEBOUNCE_MS);
+  },
+};
 
 let jsonpCounter = 0;
 async function getSpeciesImage(name){
@@ -1913,11 +2168,48 @@ function initTheme(){
 }
 
 // ---- header overflow menu --------------------------------------------------
+function renderFileSyncUI(){
+  const section = document.getElementById('fileSyncSection');
+  if(!fileSync.supported){ section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  const statusEl = document.getElementById('fileSyncStatus');
+  const btn = document.getElementById('fileSyncAction');
+
+  if(fileSync.status === 'connected'){
+    const when = fileSync.lastSyncAt ? new Date(fileSync.lastSyncAt).toLocaleTimeString(lang==='en'?'en-GB':'de-DE', {hour:'2-digit',minute:'2-digit'}) : '–';
+    statusEl.innerHTML = '🟢 ' + t('fsConnectedTo').replace('{f}', fileSync.fileName)
+      + '<br>' + t('fsSyncedAt').replace('{t}', when);
+    btn.textContent = t('fsDisconnect');
+    btn.onclick = async ()=>{ await fileSync.disconnect(); renderFileSyncUI(); };
+  } else if(fileSync.status === 'needs-permission'){
+    statusEl.innerHTML = '🟠 ' + t('fsNeedsPermission').replace('{f}', fileSync.fileName || '');
+    btn.textContent = t('fsReconnect');
+    btn.onclick = async ()=>{ await fileSync.reconnect(); renderFileSyncUI(); };
+  } else if(fileSync.status === 'error'){
+    statusEl.innerHTML = '🔴 ' + t('fsError');
+    btn.textContent = t('fsDisconnect');
+    btn.onclick = async ()=>{ await fileSync.disconnect(); renderFileSyncUI(); };
+  } else {
+    statusEl.textContent = t('fsExplain');
+    btn.textContent = t('fsConnect');
+    btn.onclick = async ()=>{
+      const ok = await fileSync.connect();
+      renderFileSyncUI();
+      if(ok) showToast(t('fsConnectedTo').replace('{f}', fileSync.fileName));
+    };
+  }
+}
+// Referenced by the button's own onclick once renderFileSyncUI wires it up;
+// this stub exists only so the initial static HTML has something to call
+// before the first render.
+function handleFileSyncClick(){}
+
 function toggleMenu(event){
   if(event) event.stopPropagation();
   const pop = document.getElementById('menuPop');
   const open = pop.classList.toggle('open');
   document.getElementById('menuBtn').setAttribute('aria-expanded', String(open));
+  if(open) renderFileSyncUI();
 }
 function closeMenu(){
   const pop = document.getElementById('menuPop');
@@ -1980,6 +2272,17 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.11.0', date:'2026-07-31', de:[
+      'Datei-Sicherung: Daten optional in eine echte lokale Datei spiegeln (übersteht gelöschte Browserdaten, Chrome/Edge Desktop)',
+      'Vierte Triage-Achse: Verwechslungsgefahr (akustisch ähnliche Arten, z.B. Taubenrufe)',
+      'BirdNET-Import: Datum/Zeit wird aus dem Dateinamen gelesen, wenn möglich — sonst deutlicher Hinweis statt stillem "jetzt"',
+      'Neue Arten übersetzt (Brachvogel, Heckenbraunelle, Uferschwalbe, Wendehals) + Rote-Liste-Status ergänzt',
+    ], en:[
+      'File backup: optionally mirror data into a real local file (survives a wiped browser, Chrome/Edge desktop)',
+      'Fourth triage axis: possible confusion (acoustically similar species, e.g. dove calls)',
+      'BirdNET import: date/time now read from the filename when possible — otherwise a clear warning instead of a silent "now"',
+      'Translated new species (Curlew, Dunnock, Sand Martin, Wryneck) + added Red List status',
+    ]},
   { v:'0.10.0', date:'2026-07-24', de:[
       'Dritte Triage-Achse: Areal-Veto (Verbreitungsgrenze)',
       'Nebelkrähe westlich der Elbe-Kontaktzone wird als ~90 % Rabenkrähe geflaggt',
@@ -2189,6 +2492,7 @@ function dismissOnboarding(){
 const BACKUP_REMIND_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 function checkBackupReminder(entryCount){
   if(entryCount === 0) return;
+  if(typeof fileSync !== 'undefined' && fileSync.status === 'connected') return;
   const snoozedUntil = +(localStorage.getItem('birdlog:backupSnoozeUntil') || 0);
   if(Date.now() < snoozedUntil) return;
   const lastExport = +(localStorage.getItem('birdlog:lastExport') || 0);
@@ -2391,11 +2695,41 @@ function addSpeciesRow(name='', count=1, confidence=''){
   if(name) updateRowThumb(id);
 }
 
+// Raven selection tables only hold RELATIVE offsets into the recording
+// (Begin/End Time in seconds) — there is no absolute-clock-time column in the
+// format. The only place a real timestamp can come from is the original
+// recorder's filename, following one of two documented conventions:
+//   AudioMoth / Wildlife Acoustics:  [prefix_]YYYYMMDD_HHMMSS[T].ext
+//   Frontier Labs:                   [prefix]YYYYMMDDTHHMMSS±hhmm_REC.ext
+// Raven batch tables sometimes carry that original filename in a "Begin File"
+// column even though the .txt itself is renamed on export — so both the
+// uploaded file's own name AND that column (if present) are worth trying.
+// Never invents a time: returns null rather than guess when nothing matches.
+function extractTimestampFromName(name){
+  if(!name) return null;
+  const m = name.match(/(\d{4})(\d{2})(\d{2})[T_](\d{2})(\d{2})(\d{2})/);
+  if(!m) return null;
+  const [, y, mo, d, h, mi, s] = m;
+  // Basic sanity check — reject obvious non-dates (e.g. an 8-digit ID that
+  // happens to match the shape) rather than writing a garbage date silently.
+  const mon = parseInt(mo,10), day = parseInt(d,10), hh = parseInt(h,10);
+  if(mon < 1 || mon > 12 || day < 1 || day > 31 || hh > 23) return null;
+  return {date: `${y}-${mo}-${d}`, time: `${h}:${mi}`};
+}
+
+function showDateTimeHint(text, cls){
+  const el = document.getElementById('dateTimeHint');
+  el.textContent = text;
+  el.className = cls;
+  el.style.display = 'block';
+}
+
 function handleBirdnetFile(event){
   const file = event.target.files[0];
   if(!file) return;
   const status = document.getElementById('uploadStatus');
   status.textContent = t('uploadReading');
+  document.getElementById('dateTimeHint').style.display = 'none';
 
   const reader = new FileReader();
   reader.onload = (e)=>{
@@ -2437,6 +2771,24 @@ function handleBirdnetFile(event){
 
       if(maxEnd > 0){
         document.getElementById('entryDuration').value = Math.max(1, Math.round(maxEnd / 60));
+      }
+
+      // Try the uploaded filename first, then a "Begin File" column if Raven
+      // included one, then give up honestly rather than trust a silent
+      // "today/now" default the way this always used to.
+      const beginFileIdx = header.indexOf('Begin File');
+      let ts = extractTimestampFromName(file.name);
+      if(!ts && beginFileIdx > -1){
+        for(let i = 1; i < lines.length && !ts; i++){
+          ts = extractTimestampFromName(lines[i].split('\t')[beginFileIdx]);
+        }
+      }
+      if(ts){
+        document.getElementById('entryDate').value = ts.date;
+        document.getElementById('entryTime').value = ts.time;
+        showDateTimeHint(t('dtGuessed').replace('{v}', ts.date + ' ' + ts.time), 'datetime-hint-ok');
+      } else {
+        showDateTimeHint(t('dtNotGuessed'), 'datetime-hint-warn');
       }
 
       status.textContent = t('uploadSuccess').replace('{n}', names.length);
@@ -2671,7 +3023,7 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
         return `
         <tr class="${(verifications[name]||{}).status==='rejected' ? 'verif-row-rejected' : ''}">
           <td><img class="sp-thumb-sm" id="${idPrefix}-thumb-${i}" style="display:none;"><span class="sp-thumb-sm sp-thumb-fallback" id="${idPrefix}-fallback-${i}">🐦</span></td>
-          <td><span class="sp-name-link" onclick='openSpeciesModal(${JSON.stringify(name)}, {days:${d.days.size}, total:${d.total}, last:${JSON.stringify(d.last)}, avgConf:${avgConf===null ? 'null' : avgConf.toFixed(1)}})'>${speciesLabel(name)}</span>${statusBadgeHTML(name)}${verifCellHTML(name, d)}</td>
+          <td><span class="sp-name-link" onclick='openSpeciesModal(${JSON.stringify(name)}, {days:${d.days.size}, total:${d.total}, last:${JSON.stringify(d.last)}, avgConf:${avgConf===null ? 'null' : avgConf.toFixed(1)}})'>${speciesLabel(name)}</span>${statusBadgeHTML(name)}${verifCellHTML(name, d, agg)}</td>
           <td>${d.days.size}<div class="freq-bar"><div class="freq-fill" style="width:${(d.days.size/maxDays*100)}%"></div></div></td>
           <td>${d.total}</td>
           <td class="mono" style="color:${avgConf===null ? 'var(--text-dim)' : avgConf<60 ? 'var(--danger)' : 'var(--text)'}">${avgConf===null ? '–' : avgConf.toFixed(0)+'%'}</td>
@@ -2766,6 +3118,15 @@ setOverviewScope(overviewScope);
 initDropzone();
 checkOnboarding();
 initCollapsibles();
+if(fileSync.supported){
+  fileSync.init().then(()=>{
+    renderFileSyncUI();
+    if(fileSync.status === 'connected'){
+      document.getElementById('backupBanner').style.display = 'none';
+      renderAll();   // file may have brought in entries from another device
+    }
+  });
+}
 </script>
 
 </body>
