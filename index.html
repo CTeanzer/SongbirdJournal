@@ -448,6 +448,13 @@
   .hab-chip.hab-veto{background:var(--danger); color:#fff; box-shadow:inset 0 0 0 2px rgba(0,0,0,.35);}
   .hab-chip.hab-confuse{background:var(--type-night-soft); color:var(--type-night);}
   .hab-chip.hab-scarce{background:var(--status-near-soft); color:var(--status-near);}
+  .zone-inline-tag{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:15px; height:15px; border-radius:50%; font-size:9px; font-weight:800;
+    margin-left:6px; margin-right:1px; vertical-align:middle; color:#fff; cursor:help;
+  }
+  .zone-inline-tag.zone-inline-a{background:var(--zone-a-line);}
+  .zone-inline-tag.zone-inline-b{background:var(--zone-b-line);}
   .rel-notice{font-size:11px; color:var(--text-dim); margin:0 0 10px; font-style:italic;}
   .verif-chip{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; margin-left:6px; vertical-align:middle;}
   .verif-chip.verif-confirmed{background:var(--status-safe-soft); color:var(--status-safe);}
@@ -666,7 +673,14 @@
       </div>
       <button id="sightingsToggle" onclick="toggleSightings()" style="position:absolute; bottom:8px; left:8px; z-index:1000; border:1px solid var(--border); border-radius:5px; box-shadow:0 1px 4px rgba(0,0,0,0.15); background:var(--accent); color:#fff; padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Sichtungen: An</button>
     </div>
-    <button id="locateBtn" onclick="useMyLocation()" data-i18n="locateBtn" style="margin-top:10px; background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:8px 14px; font-size:12px; cursor:pointer; font-weight:600;">Meinen Standort verwenden</button>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button id="locateBtn" onclick="useMyLocation('A')" data-i18n="locateBtnA" style="margin-top:10px; background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:8px 14px; font-size:12px; cursor:pointer; font-weight:600;">Standort: Zone A verwenden</button>
+      <button id="locateBtnB" onclick="useMyLocation('B')" data-i18n="locateBtnB" style="margin-top:10px; background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:8px 14px; font-size:12px; cursor:pointer; font-weight:600;">Standort: Zone B verwenden</button>
+    </div>
+    <div style="display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--text-dim); margin-top:4px;">
+      <span><span class="zone-tag zone-a" style="margin-left:0;">A</span> <span id="zoneACoords">–</span></span>
+      <span><span class="zone-tag zone-b" style="margin-left:0;">B</span> <span id="zoneBCoords">–</span></span>
+    </div>
     <div class="slider-row">
       <div class="slider-group">
         <label><span class="zone-tag zone-a" data-i18n="zoneATag">Zone A · Garten</span> Radius: <span id="rAVal">40</span> m</label>
@@ -848,7 +862,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.13.2';
+const APP_VERSION = '0.14.0';
 const APP_VERSION_DATE = '2026-07-31';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1072,9 +1086,15 @@ function reliabilityBadgeHTML(d){
 // >>> EDIT THIS ONCE per recorder zone. Replace `shares` with real CLC5 /
 // CORINE figures (area fraction of the detection catchment per category) and
 // set provisional:false. Until then verdicts render with a "?" and a notice.
+// Keyed per zone — Zone A and Zone B are different places (see area-veto
+// section below) and can have genuinely different land cover. Both profiles
+// are still hand-estimated placeholders (provisional:true) pending a real
+// CLC5 lookup; Zone B's has not yet been distinguished from Zone A's at all
+// — it's a straight copy until someone actually characterises that site's
+// land cover, so it neither over- nor under-claims accuracy it doesn't have.
 const HABITAT_PROFILE = {
-  provisional: true,
-  shares: { W:0.34, F:0.22, Wet:0.05, U:0.30, S:0.07, Wc:0.00 }
+  A: { provisional: true, shares: { W:0.34, F:0.22, Wet:0.05, U:0.30, S:0.07, Wc:0.00 } },
+  B: { provisional: true, shares: { W:0.34, F:0.22, Wet:0.05, U:0.30, S:0.07, Wc:0.00 } },
   // W woodland · F farmland/open · Wet water/wetland · U settlement · S scrub · Wc conifer-bearing wood
 };
 const HABITAT_THRESHOLD = 0.03; // a category counts as "present" at ≥3% of area
@@ -1102,11 +1122,12 @@ const HAB_WORD = {
 };
 function habWord(cat){ const w=HAB_WORD[cat]; return w?w[lang]:cat; }
 
-function habitatPlausible(name){
+function habitatPlausible(name, zone){
   const raw = HABITAT_AFFINITY[name];
   if(!raw) return null;
   const a = Array.isArray(raw) ? {needs:raw, conifer:false} : raw;
-  const shares = HABITAT_PROFILE.shares || {};
+  const profile = HABITAT_PROFILE[zone] || HABITAT_PROFILE.A;
+  const shares = profile.shares || {};
   const has = c => (shares[c]||0) >= HABITAT_THRESHOLD;
   if(a.conifer){
     return has('Wc')
@@ -1117,14 +1138,16 @@ function habitatPlausible(name){
   return met.length ? {present:true, cat:met[0]} : {present:false, cat:a.needs[0]};
 }
 
-// Only rendered for verify-tier rows.
-function habitatVerdictHTML(name, d){
-  const _av = areaVeto(name);
+// Only rendered for verify-tier rows. zone/loc select which zone's location
+// and land-cover profile this verdict is evaluated against.
+function habitatVerdictHTML(name, d, zone, loc){
+  const _av = areaVeto(name, loc);
   if(_av && _av.kind === 'reassign') return '';   // hard veto overrides habitat — no ecotone bonus
   if(reliabilityTier(d).tier !== 'verify') return '';
-  const v = habitatPlausible(name);
+  const v = habitatPlausible(name, zone);
   if(!v) return '';
-  const prov = HABITAT_PROFILE.provisional ? ' ?' : '';
+  const profile = HABITAT_PROFILE[zone] || HABITAT_PROFILE.A;
+  const prov = profile.provisional ? ' ?' : '';
   if(v.present){
     const lbl = t('habPlausible') + ' · ' + habWord(v.cat) + prov;
     const tip = t('habTipPlausible').replace('{h}', habWord(v.cat));
@@ -1220,8 +1243,8 @@ function areaVeto(name, loc){
 
 // Rendered on ANY tier (unlike habitat, which is verify-only): a geographic
 // read does not depend on how confident the detection was.
-function areaVetoHTML(name){
-  const r = areaVeto(name);
+function areaVetoHTML(name, loc){
+  const r = areaVeto(name, loc);
   if(!r) return '';
   if(r.kind === 'scarce'){
     const tip = t(r.note).replace(/"/g,'&quot;');
@@ -1299,16 +1322,53 @@ async function setVerification(name, status){
   renderAll();
 }
 
+// Always-visible zone indicator, independent of whether anything is flagged.
+// Silent for the common case (Zone A only — the app's original single-zone
+// assumption), shown whenever Zone B is involved at all. Without this, a
+// species with no area/habitat flag in either zone (most species, most of
+// the time) looked identical whether it was Zone A only or also newly
+// showed up in Zone B — exactly the "no differentiator" gap.
+function zoneSummaryHTML(d){
+  const zones = (d.zones && d.zones.size) ? Array.from(d.zones).sort() : ['A'];
+  if(zones.length === 1 && zones[0] === 'A') return '';
+  return zones.map(z =>
+    `<span class="zone-inline-tag zone-inline-${z.toLowerCase()}" title="${z==='B' ? t('zoneBTag') : t('zoneATag')}">${z}</span>`
+  ).join('');
+}
+
 // What shows after the species name in the overview: a settled verification
 // state overrides the auto-flags; otherwise the reliability + habitat chips.
+// The zone summary badge is shown regardless of verification state — which
+// zone(s) a species came from doesn't stop mattering once it's confirmed.
 function verifCellHTML(name, d, agg){
+  const zoneBadges = zoneSummaryHTML(d);
   const v = verifications[name];
   if(v && v.status === 'confirmed')
-    return `<span class="verif-chip verif-confirmed" title="${t('verifConfirmedTip')}">✓ ${t('verifConfirmed')}</span>`;
+    return zoneBadges + `<span class="verif-chip verif-confirmed" title="${t('verifConfirmedTip')}">✓ ${t('verifConfirmed')}</span>`;
   if(v && v.status === 'rejected')
-    return `<span class="verif-chip verif-rejected" title="${t('verifRejectedTip')}">✗ ${t('verifRejected')}</span>`;
+    return zoneBadges + `<span class="verif-chip verif-rejected" title="${t('verifRejectedTip')}">✗ ${t('verifRejected')}</span>`;
+
+  // Area-veto and habitat are location-dependent; reliability and confusion
+  // are not. A species seen in only one zone renders exactly as before, just
+  // now correctly targeted at THAT zone's location instead of always Zone
+  // A's. A species seen in BOTH zones gets a verdict per zone, each tagged —
+  // a genuine difference between two real places is information worth
+  // showing, not something to silently collapse into one guess.
+  const zones = (d.zones && d.zones.size) ? Array.from(d.zones).sort() : ['A'];
+  const multiZone = zones.length > 1;
+  const perZone = zones.map(zone=>{
+    const loc = zoneLocation(zone);
+    const av = areaVetoHTML(name, loc);
+    const hab = habitatVerdictHTML(name, d, zone, loc);
+    if(!av && !hab) return '';
+    const tag = multiZone
+      ? `<span class="zone-inline-tag zone-inline-${zone.toLowerCase()}" title="${zone === 'B' ? t('zoneBTag') : t('zoneATag')}">${zone}</span>`
+      : '';
+    return tag + av + hab;
+  }).join('');
+
   const confuse = agg ? confusionFlagHTML(name, agg) : '';
-  return areaVetoHTML(name) + reliabilityBadgeHTML(d) + habitatVerdictHTML(name, d) + confuse;
+  return zoneBadges + reliabilityBadgeHTML(d) + perZone + confuse;
 }
 
 // The confirm / reject / reset controls inside the species modal.
@@ -1377,7 +1437,8 @@ const I18N = {
   zoneATag:         {de:"Zone A · Garten", en:"Zone A · Garden"},
   zoneBTag:         {de:"Zone B · Feldrand", en:"Zone B · Field edge"},
   dragHint:         {de:"Marker ziehen, um den Aufnahmeort exakt zu platzieren.", en:"Drag the marker to place the recording spot precisely."},
-  locateBtn:        {de:"Meinen Standort verwenden", en:"Use my location"},
+  locateBtnA:       {de:"Standort: Zone A verwenden", en:"Use my location: Zone A"},
+  locateBtnB:       {de:"Standort: Zone B verwenden", en:"Use my location: Zone B"},
   locateLoading:    {de:"Suche Standort…", en:"Locating…"},
   locateUnsupported:{de:"Standortbestimmung wird von diesem Browser nicht unterstützt.", en:"Geolocation isn't supported by this browser."},
   locateFailed:     {de:"Standort konnte nicht ermittelt werden. Bitte Berechtigung prüfen.", en:"Couldn't get your location. Please check permissions."},
@@ -1524,7 +1585,11 @@ function switchLang(l){
 }
 
 let center = {lat:52.9027, lng:8.4111};
-let map, marker, circleA, circleB;
+// Zone B used to be modelled as a bigger ring around the SAME point as Zone
+// A — wrong; it's a genuinely different place. Second, independent
+// marker/coordinate, decoupled from Zone A entirely.
+let centerB = {lat:52.905189, lng:8.413855};
+let map, marker, markerB, circleA, circleB;
 let currentZone = 'A';
 let currentEntryType = 'bird';
 let speciesRowCount = 0;
@@ -2114,7 +2179,10 @@ function initMap(){
   });
   L.Marker.prototype.options.icon = DefaultIcon;
 
-  map = L.map('map', {zoomControl:true}).setView([center.lat, center.lng], 18);
+  map = L.map('map', {zoomControl:true});
+  // Zones can be far apart (not adjacent rings), so fit both into view
+  // instead of centring tightly on Zone A alone.
+  map.fitBounds([[center.lat, center.lng], [centerB.lat, centerB.lng]], {padding:[40,40], maxZoom:17});
 
   satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution:'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics', maxZoom:19
@@ -2133,26 +2201,44 @@ function initMap(){
     streetLayer.addTo(map);
   }
 
+  // Zone B's pin is tinted to match its map colour so the two markers read
+  // as distinct places at a glance, not just distinct circles.
+  const iconB = L.divIcon({
+    className: 'zone-b-marker',
+    html: `<svg width="25" height="41" viewBox="0 0 25 41" xmlns="http://www.w3.org/2000/svg">
+             <path d="M12.5 0C5.6 0 0 5.6 0 12.5c0 9.4 12.5 28.5 12.5 28.5S25 21.9 25 12.5C25 5.6 19.4 0 12.5 0z"
+                   fill="${cssVar('--zone-b-line')}" stroke="#fff" stroke-width="1.5"/>
+             <circle cx="12.5" cy="12.5" r="5" fill="#fff"/>
+           </svg>`,
+    iconSize:[25,41], iconAnchor:[12,41],
+  });
+
   marker = L.marker([center.lat, center.lng], {draggable:true}).addTo(map);
+  markerB = L.marker([centerB.lat, centerB.lng], {draggable:true, icon:iconB}).addTo(map);
+
   // Solid vs dashed carries the A/B distinction independently of colour.
   circleA = L.circle([center.lat, center.lng], {
     radius:40, color:cssVar('--zone-a-line'), fillColor:cssVar('--zone-a-line'),
     weight:3, opacity:0.95, fillOpacity:0.12
   }).addTo(map);
-  circleB = L.circle([center.lat, center.lng], {
+  circleB = L.circle([centerB.lat, centerB.lng], {
     radius:120, color:cssVar('--zone-b-line'), fillColor:cssVar('--zone-b-line'),
     weight:3, opacity:0.95, fillOpacity:0.08, dashArray:'6 5'
   }).addTo(map);
   sightingsLayer = L.layerGroup().addTo(map);
 
-  marker.on('drag', (e)=>{
-    const pos = e.target.getLatLng();
-    circleA.setLatLng(pos);
-    circleB.setLatLng(pos);
-  });
+  // Each marker now only ever moves its own zone's circle — they are
+  // independent places, dragging one must never touch the other.
+  marker.on('drag', (e)=>{ circleA.setLatLng(e.target.getLatLng()); });
   marker.on('dragend', (e)=>{
     center = e.target.getLatLng();
     updateHeaderCoords();
+    saveSettings();
+  });
+  markerB.on('drag', (e)=>{ circleB.setLatLng(e.target.getLatLng()); });
+  markerB.on('dragend', (e)=>{
+    centerB = e.target.getLatLng();
+    updateZoneBCoords();
     saveSettings();
   });
 
@@ -2209,6 +2295,16 @@ function initCollapsibles(){
 function updateHeaderCoords(){
   const el = document.getElementById('headerCoords');
   if(el && center) el.textContent = center.lat.toFixed(4) + ', ' + center.lng.toFixed(4);
+  const elA = document.getElementById('zoneACoords');
+  if(elA && center) elA.textContent = center.lat.toFixed(5) + ', ' + center.lng.toFixed(5);
+}
+function updateZoneBCoords(){
+  const el = document.getElementById('zoneBCoords');
+  if(el && centerB) el.textContent = centerB.lat.toFixed(5) + ', ' + centerB.lng.toFixed(5);
+}
+// (name kept for backward compat with existing callers)
+function zoneLocation(zone){
+  return zone === 'B' ? centerB : center;
 }
 
 // ---- theme -----------------------------------------------------------------
@@ -2349,6 +2445,17 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.14.0', date:'2026-08-04', de:[
+      'Zone B ist jetzt ein eigener, unabhängig verschiebbarer Ort — vorher nur ein größerer Ring um denselben Punkt wie Zone A',
+      'Areal- und Habitat-Prüfung laufen jetzt pro Eintrag: eine Art, die in beiden Zonen vorkommt, bekommt zwei getrennt beschriftete Einschätzungen statt einer geratenen',
+      'Karte zeigt jetzt beide Zonen gleichzeitig; eigener "Standort verwenden"-Knopf für Zone B',
+      'Neues A/B-Kennzeichen in der Artenübersicht, unabhängig davon ob etwas markiert ist — vorher sah eine Art aus Zone B genauso aus wie eine reine Zone-A-Art, solange kein Areal-/Habitat-Hinweis auftauchte',
+    ], en:[
+      'Zone B is now its own independently movable place — previously just a bigger ring around the same point as Zone A',
+      'Range and habitat checks now run per entry: a species seen in both zones gets two separately labelled verdicts instead of one guessed one',
+      'Map now shows both zones at once; separate "use my location" button for Zone B',
+      'New A/B indicator in the species overview, shown regardless of whether anything is flagged — previously a Zone B species looked identical to a Zone-A-only one as long as no range/habitat note fired',
+    ]},
   { v:'0.13.2', date:'2026-07-31', de:[
       'Kleinere Textanpassungen an den Areal-Hinweisen',
     ], en:[
@@ -2674,24 +2781,33 @@ function snoozeBackupBanner(){
   hideBackupBanner();
 }
 
-function useMyLocation(){
+// zone: 'A' or 'B' — each zone gets its own location now; they are
+// independent places, not a shared point with two ring sizes.
+function useMyLocation(zone){
   if(!navigator.geolocation){
     showToast(t('locateUnsupported'));
     return;
   }
-  const btn = document.getElementById('locateBtn');
+  const btn = document.getElementById(zone === 'B' ? 'locateBtnB' : 'locateBtn');
   const originalText = btn.textContent;
   btn.textContent = t('locateLoading');
   btn.disabled = true;
 
   navigator.geolocation.getCurrentPosition(
     (pos)=>{
-      center = {lat: pos.coords.latitude, lng: pos.coords.longitude};
-      map.setView([center.lat, center.lng], 17);
-      marker.setLatLng([center.lat, center.lng]);
-      circleA.setLatLng([center.lat, center.lng]);
-      circleB.setLatLng([center.lat, center.lng]);
-      updateHeaderCoords();
+      const pt = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+      if(zone === 'B'){
+        centerB = pt;
+        markerB.setLatLng([pt.lat, pt.lng]);
+        circleB.setLatLng([pt.lat, pt.lng]);
+        updateZoneBCoords();
+      } else {
+        center = pt;
+        marker.setLatLng([pt.lat, pt.lng]);
+        circleA.setLatLng([pt.lat, pt.lng]);
+        updateHeaderCoords();
+      }
+      map.fitBounds([[center.lat, center.lng], [centerB.lat, centerB.lng]], {padding:[40,40], maxZoom:17});
       saveSettings();
       renderAll();
       btn.textContent = originalText;
@@ -2710,6 +2826,7 @@ async function saveSettings(){
   try{
     await db.set('map-settings', JSON.stringify({
       lat: center.lat, lng: center.lng,
+      latB: centerB.lat, lngB: centerB.lng,
       radiusA: +document.getElementById('radiusA').value,
       radiusB: +document.getElementById('radiusB').value
     }));
@@ -2722,15 +2839,26 @@ async function loadSettings(){
     if(res && res.value){
       const s = JSON.parse(res.value);
       center = {lat:s.lat, lng:s.lng};
-      map.setView([s.lat, s.lng], 17);
       marker.setLatLng([s.lat, s.lng]);
       circleA.setLatLng([s.lat, s.lng]).setRadius(s.radiusA);
-      circleB.setLatLng([s.lat, s.lng]).setRadius(s.radiusB);
+      // Settings saved before Zone B had its own location won't have
+      // latB/lngB — fall back to the current default rather than silently
+      // collapsing Zone B back onto Zone A's point.
+      if(s.latB != null && s.lngB != null){
+        centerB = {lat:s.latB, lng:s.lngB};
+      }
+      markerB.setLatLng([centerB.lat, centerB.lng]);
+      circleB.setLatLng([centerB.lat, centerB.lng]).setRadius(s.radiusB);
       document.getElementById('radiusA').value = s.radiusA;
       document.getElementById('radiusB').value = s.radiusB;
       document.getElementById('rAVal').textContent = s.radiusA;
       document.getElementById('rBVal').textContent = s.radiusB;
+      map.fitBounds([[center.lat, center.lng], [centerB.lat, centerB.lng]], {padding:[40,40], maxZoom:17});
       updateHeaderCoords();
+      updateZoneBCoords();
+    } else {
+      updateHeaderCoords();
+      updateZoneBCoords();
     }
   }catch(e){ /* no settings yet, defaults stand */ }
 }
@@ -3156,11 +3284,13 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
   }
   const agg = {};
   entries.forEach(e=>{
+    const zone = e.zone === 'B' ? 'B' : 'A';
     (Array.isArray(e.species) ? e.species : []).forEach(s=>{
-      if(!agg[s.name]) agg[s.name] = {total:0, days:new Set(), last:e.date, confidences:[], sessions:new Set()};
+      if(!agg[s.name]) agg[s.name] = {total:0, days:new Set(), last:e.date, confidences:[], sessions:new Set(), zones:new Set()};
       agg[s.name].total += s.count;
       agg[s.name].days.add(e.date);
       agg[s.name].sessions.add(e.id || (e.date + (e.time || '')));
+      agg[s.name].zones.add(zone);
       if(e.date > agg[s.name].last) agg[s.name].last = e.date;
       if(s.detections) s.detections.forEach(d=>agg[s.name].confidences.push(d.c));
     });
@@ -3181,7 +3311,7 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
       <span class="rel-badge rel-probable">${t('relProbable')}</span>
       <span class="rel-badge rel-verify">${t('relVerify')}</span>
     </div>
-    ${(typeof HABITAT_PROFILE!=='undefined' && HABITAT_PROFILE.provisional) ? `<div class="rel-notice">${t('habNotice')}</div>` : ''}
+    ${(typeof HABITAT_PROFILE!=='undefined' && (HABITAT_PROFILE.A.provisional || HABITAT_PROFILE.B.provisional)) ? `<div class="rel-notice">${t('habNotice')}</div>` : ''}
     <table>
       <tr><th></th><th>${t('colSpecies')}</th><th>${t('colDaysSeen')}</th><th>${t('colTotal')}</th><th>${t('colConfidence')}</th><th>${t('colLastSeen')}</th></tr>
       ${rows.map(([name, d], i)=>{
@@ -3263,6 +3393,7 @@ document.body.insertAdjacentHTML('beforeend', speciesDatalistHTML('nightSpeciesL
 initTheme();
 initMap();
 updateHeaderCoords();
+updateZoneBCoords();
 setMapLayer(currentMapLayer);
 if(!sightingsVisible) map.removeLayer(sightingsLayer);
 updateSightingsToggleLabel();
