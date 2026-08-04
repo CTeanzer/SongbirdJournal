@@ -3,7 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SongbirdJournal</title>
+
+<!-- Favicon (PNG only — no vector source for this artwork, so no SVG variant).
+     16/32px cover browser tabs; apple-touch-icon is what shows if this gets
+     added to an iOS home screen. All three files need to be uploaded
+     alongside index.html. -->
+<link rel="icon" href="favicon-32x32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="favicon-16x16.png" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<title>SongbirdJournal — Gartenvögel loggen mit BirdNET</title>
+<meta name="description" content="Persönliches Vogel-Logbuch: Artenerkennung per BirdNET, mit automatischen Plausibilitätsprüfungen für Habitat, Verbreitung und Verwechslungsgefahr. Daten bleiben lokal.">
+<link rel="canonical" href="https://cteanzer.github.io/SongbirdJournal/">
+
+<!-- Social preview (LinkedIn, etc.). Image is social-preview.png, same repo,
+     1200x630 — must be uploaded alongside this file or the card falls back
+     to a blank/broken preview. og:image needs an absolute URL; a relative
+     path silently fails on most crawlers. -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://cteanzer.github.io/SongbirdJournal/">
+<meta property="og:site_name" content="SongbirdJournal">
+<meta property="og:title" content="SongbirdJournal — Hear, Log, Understand">
+<meta property="og:description" content="Your app to understand your garden's biodiversity better. Bird ID via BirdNET, with automatic plausibility checks for habitat, range, and species confusion.">
+<meta property="og:image" content="https://cteanzer.github.io/SongbirdJournal/social-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SongbirdJournal wordmark with the origami-style bird mark, on a dark background">
+<meta property="og:locale" content="de_DE">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SongbirdJournal — Hear, Log, Understand">
+<meta name="twitter:description" content="Your app to understand your garden's biodiversity better, with BirdNET-based bird ID and automatic plausibility checks.">
+<meta name="twitter:image" content="https://cteanzer.github.io/SongbirdJournal/social-preview.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -862,8 +893,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.14.0';
-const APP_VERSION_DATE = '2026-07-31';
+const APP_VERSION = '0.15.2';
+const APP_VERSION_DATE = '2026-08-04';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -2445,6 +2476,21 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.15.2', date:'2026-08-04', de:[
+      'Social-Preview: eigenes Wortmarken-Banner (Logo + Schriftzug) statt Punkte-Grafik oder Text im Bild — Titel/Beschreibung kommen weiterhin vollständig aus den Meta-Tags, damit sie ohne neues Bild übersetzt werden können',
+    ], en:[
+      'Social preview: dedicated wordmark banner (logo + name) instead of the dot graphic or text baked into the image — title/description still come entirely from meta tags, so they can be translated without regenerating the image',
+    ]},
+  { v:'0.15.1', date:'2026-08-04', de:[
+      'Favicon hinzugefügt (Browsertab-Symbol) — braucht 3 neue Dateien im selben Repo-Ordner: favicon-32x32.png, favicon-16x16.png, apple-touch-icon.png',
+    ], en:[
+      'Added a favicon (browser tab icon) — needs 3 new files in the same repo folder: favicon-32x32.png, favicon-16x16.png, apple-touch-icon.png',
+    ]},
+  { v:'0.15.0', date:'2026-08-04', de:[
+      'Social-Preview für geteilte Links (LinkedIn etc.) — eigenes Vorschaubild + Meta-Tags. Braucht die neue Datei social-preview.png im selben Repo-Ordner.',
+    ], en:[
+      'Social preview for shared links (LinkedIn etc.) — dedicated preview image + meta tags. Needs the new social-preview.png file in the same repo folder.',
+    ]},
   { v:'0.14.0', date:'2026-08-04', de:[
       'Zone B ist jetzt ein eigener, unabhängig verschiebbarer Ort — vorher nur ein größerer Ring um denselben Punkt wie Zone A',
       'Areal- und Habitat-Prüfung laufen jetzt pro Eintrag: eine Art, die in beiden Zonen vorkommt, bekommt zwei getrennt beschriftete Einschätzungen statt einer geratenen',
