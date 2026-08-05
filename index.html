@@ -403,6 +403,8 @@
   #guideModalBody li, #methodologyModalBody li{margin-bottom:4px;}
   #guideModalBody p, #methodologyModalBody p{margin:6px 0;}
   #guideModalBody code, #methodologyModalBody code{background:var(--bg-elev); padding:1px 5px; border-radius:3px; font-size:12px;}
+  #guideModalBody a, #methodologyModalBody a{color:var(--accent); text-decoration:underline;}
+  #guideModalBody a:hover, #methodologyModalBody a:hover{color:var(--accent-hover);}
   #methodologyModalBody .src-note{font-size:12px; color:var(--text-dim); margin-top:2px;}
   #methodologyModalBody .method-limit{background:var(--bg-elev); border-left:3px solid var(--accent); padding:10px 12px; margin-top:16px; border-radius:0 6px 6px 0; font-size:13px;}
   #reportModalBody h3{font-size:20px; margin-bottom:2px;}
@@ -918,7 +920,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.16.0';
+const APP_VERSION = '0.16.1';
 const APP_VERSION_DATE = '2026-08-04';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -2501,6 +2503,11 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.16.1', date:'2026-08-04', de:[
+      'Kontakt-E-Mail im Anleitung-Bereich "Feedback" ergänzt',
+    ], en:[
+      'Added contact email to the "Feedback" section of the guide',
+    ]},
   { v:'0.16.0', date:'2026-08-04', de:[
       'Logo jetzt auch in der App selbst — im Header neben dem Namen, eingebettet (kein separater Datei-Upload nötig) und reagiert auf Hell/Dunkel wie der Rest der Oberfläche',
     ], en:[
@@ -2695,7 +2702,7 @@ const GUIDE_CONTENT = {
     <h4>Daten sichern</h4>
     <p>Alles bleibt nur in diesem Browser gespeichert. Regelmäßig „Exportieren" nutzen, „Importieren" führt Backups mit bestehenden Daten zusammen, ohne zu überschreiben.</p>
     <h4>Feedback</h4>
-    <p>Die App wird laufend weiterentwickelt — Fehler, Ideen oder Wünsche gerne melden.</p>
+    <p>Die App wird laufend weiterentwickelt — Fehler, Ideen oder Wünsche gerne melden: <a href="mailto:songbirdjournal.adm@gmail.com">songbirdjournal.adm@gmail.com</a></p>
   `,
   en: `
     <h4>Getting started</h4>
@@ -2729,7 +2736,7 @@ const GUIDE_CONTENT = {
     <h4>Backing up your data</h4>
     <p>Everything stays only in this browser. Use "Export" regularly — "Import" merges backups with existing data, it won't overwrite.</p>
     <h4>Feedback</h4>
-    <p>This app continues to evolve — bugs, ideas, or feature requests are welcome.</p>
+    <p>This app continues to evolve — bugs, ideas, or feature requests are welcome: <a href="mailto:songbirdjournal.adm@gmail.com">songbirdjournal.adm@gmail.com</a></p>
   `
 };
 
