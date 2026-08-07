@@ -405,6 +405,25 @@
   #guideModalBody code, #methodologyModalBody code{background:var(--bg-elev); padding:1px 5px; border-radius:3px; font-size:12px;}
   #guideModalBody a, #methodologyModalBody a{color:var(--accent); text-decoration:underline;}
   #guideModalBody a:hover, #methodologyModalBody a:hover{color:var(--accent-hover);}
+  /* Arrivals & residency */
+  .arrivals-block{margin-bottom:16px;}
+  .arrivals-heading{font-size:12px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px;}
+  .arrivals-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+  .arrivals-list li{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .arrival-name{font-weight:700; font-size:15px;}
+  .arrival-badge{font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px;}
+  .arrival-new{background:var(--type-day-dot); color:#fff;}
+  .arrival-date{font-size:12px; color:var(--text-dim); font-variant-numeric:tabular-nums;}
+  .residency-summary{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-top:4px;}
+  .res-pill{font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px;}
+  .res-resident{background:var(--status-safe-soft); color:var(--status-safe);}
+  .res-occasional{background:var(--status-near-soft); color:var(--status-near);}
+  .res-visitor{background:var(--bg-elev); color:var(--text-dim);}
+  .res-note{flex-basis:100%; font-size:12px; color:var(--text-dim); margin-top:4px;}
+  .res-dot{display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:6px; vertical-align:middle;}
+  .res-dot-resident{background:var(--status-safe);}
+  .res-dot-occasional{background:var(--status-near);}
+  .res-dot-visitor{background:var(--border);}
   #methodologyModalBody .src-note{font-size:12px; color:var(--text-dim); margin-top:2px;}
   #methodologyModalBody .method-limit{background:var(--bg-elev); border-left:3px solid var(--accent); padding:10px 12px; margin-top:16px; border-radius:0 6px 6px 0; font-size:13px;}
   #reportModalBody h3{font-size:20px; margin-bottom:2px;}
@@ -729,7 +748,6 @@
         <button id="mapLayerSat" onclick="setMapLayer('sat')" data-i18n="satBtn" style="border:none; background:var(--accent); color:#fff; padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Satellit</button>
         <button id="mapLayerStreet" onclick="setMapLayer('street')" data-i18n="streetBtn" style="border:none; background:var(--bg-panel); color:var(--text-dim); padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Karte</button>
       </div>
-      <button id="sightingsToggle" onclick="toggleSightings()" style="position:absolute; bottom:8px; left:8px; z-index:1000; border:1px solid var(--border); border-radius:5px; box-shadow:0 1px 4px rgba(0,0,0,0.15); background:var(--accent); color:#fff; padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700;">Sichtungen: An</button>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <button id="locateBtn" onclick="useMyLocation('A')" data-i18n="locateBtnA" style="margin-top:10px; background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:8px 14px; font-size:12px; cursor:pointer; font-weight:600;">Standort: Zone A verwenden</button>
@@ -788,6 +806,19 @@
         <div id="calClockDetail" class="cal-fan-hint"></div>
       </div>
     </div>
+    </div>
+  </div>
+
+  <div class="panel" id="arrivalsPanel" style="display:none;">
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('arrivalsBody')"
+              aria-expanded="true" aria-controls="arrivalsBody">
+        <span data-i18n="panelArrivalsTitle">Neu &amp; bemerkenswert</span>
+        <span class="chevron" id="arrivalsBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="arrivalsBody">
+      <div id="arrivalsContent"></div>
     </div>
   </div>
 
@@ -920,8 +951,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.16.1';
-const APP_VERSION_DATE = '2026-08-04';
+const APP_VERSION = '0.17.1';
+const APP_VERSION_DATE = '2026-08-06';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -1527,6 +1558,16 @@ const I18N = {
   notesPlaceholder: {de:"Wetter, Beobachtungen, Auffälligkeiten...", en:"Weather, observations, anything notable..."},
   saveBtn:          {de:"Aufnahme speichern", en:"Save recording"},
   panelOverviewTitle:{de:"Artenübersicht", en:"Species overview"},
+  panelArrivalsTitle:{de:"Neu & bemerkenswert", en:"New & notable"},
+  arrivalsRecentHeading:{de:"Zuletzt neu im Garten", en:"Recently new to the garden"},
+  arrivalNewest:{de:"neu heute", en:"new today"},
+  resResidents:{de:"Stammgäste", en:"regulars"},
+  resOccasional:{de:"gelegentlich", en:"occasional"},
+  resVisitors:{de:"Durchzügler", en:"visitors"},
+  resNote:{de:"{total} Arten insgesamt über {days} erfasste Tage — die meisten sind einmalige Gäste, nicht Stammvögel.", en:"{total} species across {days} logged days — most are one-off guests, not regulars."},
+  res_resident:{de:"Stammgast — an vielen Tagen präsent", en:"Regular — present on many days"},
+  res_occasional:{de:"Gelegentlich gesehen", en:"Seen occasionally"},
+  res_visitor:{de:"Durchzügler — nur an einem Tag", en:"Visitor — seen on a single day"},
   relSolid:         {de:"belastbar", en:"solid"},
   relProbable:      {de:"wahrscheinlich", en:"probable"},
   relVerify:        {de:"prüfen", en:"verify"},
@@ -1599,9 +1640,7 @@ const I18N = {
   typeBird:         {de:"BirdNET-Aufnahme", en:"BirdNET Recording"},
   typeNight:        {de:"Nachtkamera", en:"Night Camera"},
   tagNight:         {de:"Nacht", en:"Night"},
-  tagDay:           {de:"Tag", en:"Day"},
-  sightingsLabelOn: {de:"Sichtungen: An", en:"Sightings: On"},
-  sightingsLabelOff:{de:"Sichtungen: Aus", en:"Sightings: Off"}
+  tagDay:           {de:"Tag", en:"Day"}
 };
 
 let lang = localStorage.getItem('birdlog:lang') || 'de';
@@ -1637,7 +1676,6 @@ function switchLang(l){
     if(nums[0]) nums[0].title = t('countTitle');
     if(nums[1]){ nums[1].title = t('confidenceTitle'); }
   });
-  updateSightingsToggleLabel();
   if(typeof renderFileSyncUI === 'function') renderFileSyncUI();
   renderAll();
 }
@@ -2212,9 +2250,8 @@ async function updateRowThumb(rowId){
   setThumb(img, fallback, url);
 }
 
-let satLayer, streetLayer, labelsLayer, sightingsLayer;
+let satLayer, streetLayer, labelsLayer;
 let currentMapLayer = localStorage.getItem('birdlog:maplayer') || 'sat';
-let sightingsVisible = localStorage.getItem('birdlog:sightings') !== 'off';
 
 function cssVar(name){
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -2283,7 +2320,6 @@ function initMap(){
     radius:120, color:cssVar('--zone-b-line'), fillColor:cssVar('--zone-b-line'),
     weight:3, opacity:0.95, fillOpacity:0.08, dashArray:'6 5'
   }).addTo(map);
-  sightingsLayer = L.layerGroup().addTo(map);
 
   // Each marker now only ever moves its own zone's circle — they are
   // independent places, dragging one must never touch the other.
@@ -2503,6 +2539,20 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.17.1', date:'2026-08-06', de:[
+      'Sichtungs-Punkte auf der Karte entfernt — sie waren nur zufällig um den Zonenmittelpunkt gestreut, nicht echte Fundorte, und täuschten so eine Genauigkeit vor, die die Daten nicht haben. Die Karte dient weiterhin zum Platzieren der Zonen.',
+    ], en:[
+      'Removed the per-sighting dots from the map — they were only randomly scattered around the zone centre, not real locations, which faked a precision the data doesn\'t have. The map still serves to place your zones.',
+    ]},
+  { v:'0.17.0', date:'2026-08-06', de:[
+      'Neuer Bereich "Neu & bemerkenswert": zeigt zuletzt neu aufgetauchte Arten (mit "neu heute"-Markierung) — das erste Schwarzkehlchen etc. sofort sichtbar',
+      'Ehrlichere Einordnung der Artenliste: Aufteilung in Stammgäste / gelegentlich / Durchzügler, statt nur einer Gesamtzahl — die meisten Arten sind einmalige Gäste',
+      'Kleiner Punkt neben "Tage gesehen" zeigt den Status je Art direkt in der Übersicht',
+    ], en:[
+      'New "New & notable" section: shows recently first-seen species (with a "new today" marker) — your first Stonechat etc. visible at a glance',
+      'More honest framing of the species list: split into regulars / occasional / visitors instead of one flat count — most species are one-off guests',
+      'A small dot next to "days seen" shows each species\' status right in the overview',
+    ]},
   { v:'0.16.1', date:'2026-08-04', de:[
       'Kontakt-E-Mail im Anleitung-Bereich "Feedback" ergänzt',
     ], en:[
@@ -2688,7 +2738,6 @@ const GUIDE_CONTENT = {
       <li>Artenübersicht &amp; Nachtkamera-Übersicht — sortierbar, mit Foto, Konfidenz, Gefährdungsstatus, Verlässlichkeits-Badges und Überprüfung (wo verfügbar)</li>
       <li>Aufnahme-Kalender mit Streaks</li>
       <li>Tageszeit-Diagramm</li>
-      <li>Sichtungskarte (ungefähre Platzierung, keine exakten GPS-Koordinaten)</li>
       <li>Verlauf — Artenübersicht und Verlauf lassen sich einklappen (Klick auf den Titel)</li>
     </ul>
     <h4>Bestimmungs-Check</h4>
@@ -2722,7 +2771,6 @@ const GUIDE_CONTENT = {
       <li>Species &amp; Night Camera overview — sortable, with photo, confidence, conservation status, reliability badges, and verification (where available)</li>
       <li>Recording calendar with streaks</li>
       <li>Time of day chart</li>
-      <li>Sightings map (approximate placement, not exact GPS)</li>
       <li>History — Species Overview and History can be collapsed (click the title)</li>
     </ul>
     <h4>How the ID check works</h4>
@@ -2971,59 +3019,6 @@ function setZone(z){
   document.getElementById('btnZoneB').setAttribute('aria-pressed', String(z==='B'));
 }
 
-function jitterPoint(centerLat, centerLng, radiusMeters, seedStr){
-  let hash = 0;
-  for(let i=0; i<seedStr.length; i++){ hash = (hash * 31 + seedStr.charCodeAt(i)) >>> 0; }
-  const angle = (hash % 360) * Math.PI / 180;
-  const frac = 0.3 + ((hash >> 8) % 70) / 100;
-  const dist = radiusMeters * frac;
-  const dLat = (dist * Math.cos(angle)) / 111320;
-  const dLng = (dist * Math.sin(angle)) / (111320 * Math.cos(centerLat * Math.PI / 180));
-  return {lat: centerLat + dLat, lng: centerLng + dLng};
-}
-
-function toggleSightings(){
-  sightingsVisible = !sightingsVisible;
-  localStorage.setItem('birdlog:sightings', sightingsVisible ? 'on' : 'off');
-  updateSightingsToggleLabel();
-  if(sightingsVisible){ sightingsLayer.addTo(map); renderAll(); } else { map.removeLayer(sightingsLayer); }
-}
-
-function updateSightingsToggleLabel(){
-  const btn = document.getElementById('sightingsToggle');
-  btn.textContent = sightingsVisible ? t('sightingsLabelOn') : t('sightingsLabelOff');
-  btn.style.background = sightingsVisible ? 'var(--accent)' : 'var(--bg-panel)';
-  btn.style.color = sightingsVisible ? '#fff' : 'var(--text-dim)';
-}
-
-function renderSightings(entries){
-  if(!sightingsLayer) return;
-  sightingsLayer.clearLayers();
-  entries.forEach(e=>{
-    try{
-      let lat = e.lat, lng = e.lng;
-      if(typeof lat !== 'number' || typeof lng !== 'number'){
-        // Imported/legacy entries never had coordinates saved — derive a
-        // fallback position now so they still show up, rather than skipping.
-        const zoneRadius = e.zone === 'B' ? +document.getElementById('radiusB').value : +document.getElementById('radiusA').value;
-        const pt = jitterPoint(center.lat, center.lng, zoneRadius, e.id);
-        lat = pt.lat; lng = pt.lng;
-      }
-      const color = cssVar(e.type === 'night' ? '--type-night-dot' : '--type-day-dot');
-      const marker = L.circleMarker([lat, lng], {
-        radius:7, color:'#fff', weight:2, fillColor:color, fillOpacity:0.95
-      });
-      const speciesList = Array.isArray(e.species) ? e.species : [];
-      const speciesText = speciesList.map(s=>speciesLabel(s.name)).join(', ');
-      const typeTag = e.type === 'night' ? t('tagNight') : t('tagDay');
-      marker.bindPopup(`<b>${e.date} ${e.time || ''}</b><br>${typeTag} · Zone ${e.zone}<br>${speciesText}`);
-      sightingsLayer.addLayer(marker);
-    }catch(err){
-      console.error('renderSightings: skipped a malformed entry', e && e.id, err);
-    }
-  });
-}
-
 function setMapLayer(type){
   currentMapLayer = type;
   localStorage.setItem('birdlog:maplayer', type);
@@ -3219,8 +3214,6 @@ async function saveEntry(){
     return;
   }
   const entryId = 'e' + Date.now();
-  const zoneRadius = currentZone === 'A' ? +document.getElementById('radiusA').value : +document.getElementById('radiusB').value;
-  const pt = jitterPoint(center.lat, center.lng, zoneRadius, entryId);
   const entry = {
     id: entryId,
     type: currentEntryType,
@@ -3228,8 +3221,6 @@ async function saveEntry(){
     time: document.getElementById('entryTime').value,
     duration: +document.getElementById('entryDuration').value,
     zone: currentZone,
-    lat: pt.lat,
-    lng: pt.lng,
     species,
     notes: document.getElementById('entryNotes').value.trim()
   };
@@ -3364,6 +3355,105 @@ function importData(event){
   event.target.value = '';
 }
 
+// ── Arrivals & residency ─────────────────────────────────────────────────
+// One shared computation over the entries powers two views: the "new &
+// notable" panel (the exciting bit — what just showed up) and the
+// resident/visitor split (the honest bit — most of a long species list is
+// one-off fly-throughs, not residents). Both read from per-species distinct
+// days + first-seen date.
+//
+// Residency is deliberately coarse and descriptive, never predictive: it
+// reports what the log contains, not what "lives" there. Thresholds are
+// relative to how many days were actually logged, so a bursty 13-day log and
+// a steady 3-month log both classify sensibly.
+function speciesResidency(daysSeen, totalLoggedDays){
+  if(totalLoggedDays <= 0) return 'visitor';
+  const frac = daysSeen / totalLoggedDays;
+  // seen on ~half or more of logged days → a regular; a handful → occasional;
+  // a single day → a one-off visitor. Kept simple on purpose.
+  if(daysSeen === 1) return 'visitor';
+  if(frac >= 0.5) return 'resident';
+  return 'occasional';
+}
+
+function buildSpeciesStats(entries){
+  const agg = {};
+  const loggedDays = new Set();
+  entries.forEach(e=>{
+    loggedDays.add(e.date);
+    (Array.isArray(e.species) ? e.species : []).forEach(s=>{
+      if(!agg[s.name]) agg[s.name] = {days:new Set(), first:e.date, last:e.date};
+      agg[s.name].days.add(e.date);
+      if(e.date > agg[s.name].last) agg[s.name].last = e.date;
+      if(e.date < agg[s.name].first) agg[s.name].first = e.date;
+    });
+  });
+  return {agg, totalLoggedDays: loggedDays.size, allDates: Array.from(loggedDays).sort()};
+}
+
+// A species is a "new arrival" if its first-ever appearance falls within the
+// recent window — measured in LOGGED days, not calendar days, so a week of
+// not recording doesn't make everything look new when logging resumes.
+function renderArrivals(entries){
+  const panel = document.getElementById('arrivalsPanel');
+  const content = document.getElementById('arrivalsContent');
+  const birdEntries = entries.filter(e => (e.type || 'bird') === 'bird');
+  if(birdEntries.length === 0){ panel.style.display = 'none'; return; }
+
+  const {agg, totalLoggedDays, allDates} = buildSpeciesStats(birdEntries);
+  if(totalLoggedDays === 0){ panel.style.display = 'none'; return; }
+
+  // "recent" = the last logged day, plus anything first seen within the most
+  // recent stretch of logged days (up to 3 distinct logged days back).
+  const recentWindow = allDates.slice(-3);
+  const recentSet = new Set(recentWindow);
+  const latestDay = allDates[allDates.length - 1];
+
+  const arrivals = Object.entries(agg)
+    .filter(([, d]) => recentSet.has(d.first))
+    .sort((a,b)=> b[1].first.localeCompare(a[1].first));
+
+  // residency tallies for the honest summary line
+  let residents = 0, occasional = 0, visitors = 0;
+  Object.values(agg).forEach(d=>{
+    const r = speciesResidency(d.days.size, totalLoggedDays);
+    if(r === 'resident') residents++;
+    else if(r === 'occasional') occasional++;
+    else visitors++;
+  });
+  const totalSpecies = Object.keys(agg).length;
+
+  if(arrivals.length === 0 && totalSpecies === 0){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  let html = '';
+
+  if(arrivals.length){
+    const items = arrivals.map(([name, d])=>{
+      const isToday = d.first === latestDay;
+      const badge = isToday
+        ? `<span class="arrival-badge arrival-new">${t('arrivalNewest')}</span>`
+        : `<span class="arrival-date">${d.first}</span>`;
+      const status = statusBadgeHTML(name);
+      return `<li><span class="arrival-name">${speciesLabel(name)}</span>${status}${badge}</li>`;
+    }).join('');
+    html += `<div class="arrivals-block">
+      <div class="arrivals-heading">${t('arrivalsRecentHeading')}</div>
+      <ul class="arrivals-list">${items}</ul>
+    </div>`;
+  }
+
+  // Residency summary — the honest reframing of "N species"
+  html += `<div class="residency-summary">
+    <span class="res-pill res-resident">${residents} ${t('resResidents')}</span>
+    <span class="res-pill res-occasional">${occasional} ${t('resOccasional')}</span>
+    <span class="res-pill res-visitor">${visitors} ${t('resVisitors')}</span>
+    <div class="res-note">${t('resNote').replace('{total}', totalSpecies).replace('{days}', totalLoggedDays)}</div>
+  </div>`;
+
+  content.innerHTML = html;
+}
+
 function renderOverviewTable(entries, containerId, mode, idPrefix){
   const container = document.getElementById(containerId);
   if(entries.length === 0){
@@ -3374,16 +3464,18 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
   entries.forEach(e=>{
     const zone = e.zone === 'B' ? 'B' : 'A';
     (Array.isArray(e.species) ? e.species : []).forEach(s=>{
-      if(!agg[s.name]) agg[s.name] = {total:0, days:new Set(), last:e.date, confidences:[], sessions:new Set(), zones:new Set()};
+      if(!agg[s.name]) agg[s.name] = {total:0, days:new Set(), first:e.date, last:e.date, confidences:[], sessions:new Set(), zones:new Set()};
       agg[s.name].total += s.count;
       agg[s.name].days.add(e.date);
       agg[s.name].sessions.add(e.id || (e.date + (e.time || '')));
       agg[s.name].zones.add(zone);
       if(e.date > agg[s.name].last) agg[s.name].last = e.date;
+      if(e.date < agg[s.name].first) agg[s.name].first = e.date;
       if(s.detections) s.detections.forEach(d=>agg[s.name].confidences.push(d.c));
     });
   });
   let rows = Object.entries(agg);
+  const overviewLoggedDays = new Set(entries.map(e=>e.date)).size;
   if(mode === 'name'){
     rows.sort((a,b)=> speciesLabel(a[0]).localeCompare(speciesLabel(b[0])));
   } else if(mode === 'recent'){
@@ -3408,7 +3500,7 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
         <tr class="${(verifications[name]||{}).status==='rejected' ? 'verif-row-rejected' : ''}">
           <td><img class="sp-thumb-sm" id="${idPrefix}-thumb-${i}" style="display:none;"><span class="sp-thumb-sm sp-thumb-fallback" id="${idPrefix}-fallback-${i}">🐦</span></td>
           <td><span class="sp-name-link" onclick='openSpeciesModal(${JSON.stringify(name)}, {days:${d.days.size}, total:${d.total}, last:${JSON.stringify(d.last)}, avgConf:${avgConf===null ? 'null' : avgConf.toFixed(1)}})'>${speciesLabel(name)}</span>${statusBadgeHTML(name)}${verifCellHTML(name, d, agg)}</td>
-          <td>${d.days.size}<div class="freq-bar"><div class="freq-fill" style="width:${(d.days.size/maxDays*100)}%"></div></div></td>
+          <td>${d.days.size}<span class="res-dot res-dot-${speciesResidency(d.days.size, overviewLoggedDays)}" title="${t('res_'+speciesResidency(d.days.size, overviewLoggedDays))}"></span><div class="freq-bar"><div class="freq-fill" style="width:${(d.days.size/maxDays*100)}%"></div></div></td>
           <td>${d.total}</td>
           <td class="mono" style="color:${avgConf===null ? 'var(--text-dim)' : avgConf<60 ? 'var(--danger)' : 'var(--text)'}">${avgConf===null ? '–' : avgConf.toFixed(0)+'%'}</td>
           <td class="mono" style="color:var(--text-dim)">${d.last}</td>
@@ -3443,7 +3535,7 @@ async function renderAll(){
   try{ checkBackupReminder(entries.length); }catch(err){ console.error('checkBackupReminder failed', err); }
   try{ renderCalendar(entries); }catch(err){ console.error('renderCalendar failed', err); }
   try{ renderClock(entries); }catch(err){ console.error('renderClock failed', err); }
-  try{ renderSightings(entries); }catch(err){ console.error('renderSightings failed', err); }
+  try{ renderArrivals(entries); }catch(err){ console.error('renderArrivals failed', err); }
 
   // One table, filtered — birds and night-camera sightings were two identical
   // panels differing only by which entries they were handed.
@@ -3483,13 +3575,11 @@ initMap();
 updateHeaderCoords();
 updateZoneBCoords();
 setMapLayer(currentMapLayer);
-if(!sightingsVisible) map.removeLayer(sightingsLayer);
-updateSightingsToggleLabel();
 document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
 document.title = 'SongbirdJournal v' + APP_VERSION;
 loadSettings().then(()=>{
   // Map was built while the DOM was still settling — re-measure once layout is
-  // real, then repaint so the tiles AND the sighting dots land correctly.
+  // real so the tiles and zone markers render at the correct size.
   requestAnimationFrame(()=>{
     if(map){ map.invalidateSize(); renderAll(); }
   });
