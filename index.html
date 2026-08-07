@@ -250,6 +250,14 @@
   .version-badge:hover{color:var(--accent); border-color:var(--accent); filter:none;}
   header .eyebrow{color:var(--accent); font-size:12px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px; font-weight:700;}
   header h1{font-size:26px;}
+  /* Tabbed navigation */
+  .tab-bar{display:flex; gap:2px; margin-bottom:20px; border-bottom:1px solid var(--border); overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  .tab-bar .tab{padding:13px 18px; font-size:13px; font-weight:600; color:var(--text-dim); background:none; border:none; border-bottom:2.5px solid transparent; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:7px; font-family:inherit;}
+  .tab-bar .tab:hover{color:var(--text);}
+  .tab-bar .tab.active{color:var(--accent); border-bottom-color:var(--accent);}
+  .tab-dot{width:7px; height:7px; border-radius:50%; background:var(--type-day-dot); display:inline-block;}
+  .tab-view{display:none;}
+  .tab-view.active{display:block;}
   .logo-mark{
     height:34px; width:34px; vertical-align:middle; margin-right:10px;
     display:inline-block; object-fit:contain;
@@ -392,6 +400,7 @@
   .modal-stats{display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:14px;}
   @media (max-width:480px){
     .modal-stats{grid-template-columns:repeat(2, 1fr);}
+    .tab-bar .tab{padding:12px 10px; font-size:12px; gap:5px;}
   }
   .modal-stats div{flex:1; text-align:center; background:var(--bg-elev); border-radius:6px; padding:10px 4px;}
   .modal-stats b{display:block; font-size:18px; color:var(--accent); font-variant-numeric:tabular-nums;}
@@ -664,7 +673,29 @@
 
 <main>
 
-  <div class="panel">
+  <nav class="tab-bar" id="tabBar" role="tablist">
+    <button class="tab" role="tab" data-tab="overview" onclick="setTab('overview')">
+      <span class="tab-dot" id="tabNewDot" style="display:none;"></span><span data-i18n="tabOverview">Neu &amp; Übersicht</span>
+    </button>
+    <button class="tab" role="tab" data-tab="log" onclick="setTab('log')" data-i18n="tabLog">Eintragen</button>
+    <button class="tab" role="tab" data-tab="patterns" onclick="setTab('patterns')" data-i18n="tabPatterns">Muster</button>
+    <button class="tab" role="tab" data-tab="map" onclick="setTab('map')" data-i18n="tabMap">Karte &amp; Zonen</button>
+  </nav>
+
+  <div class="tab-view" data-view="overview" id="view-overview"></div>
+  <div class="tab-view" data-view="log" id="view-log"></div>
+  <div class="tab-view" data-view="patterns" id="view-patterns"></div>
+  <div class="tab-view" data-view="map" id="view-map"></div>
+
+</main>
+
+<!-- Panels live below; on load, JS moves each into its tab-view container by
+     data-home. This keeps the existing panel markup untouched (all IDs,
+     handlers, i18n intact) while regrouping them into tabs — a structural
+     move, not a rewrite of each panel. -->
+<div id="panelStash" style="display:none;">
+
+  <div class="panel" data-home="log">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('entryBody')"
               aria-expanded="true" aria-controls="entryBody">
@@ -732,7 +763,7 @@
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel" data-home="map">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('mapBody')"
               aria-expanded="true" aria-controls="mapBody">
@@ -771,7 +802,7 @@
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel" data-home="patterns">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('calendarBody')"
               aria-expanded="true" aria-controls="calendarBody">
@@ -809,7 +840,7 @@
     </div>
   </div>
 
-  <div class="panel" id="arrivalsPanel" style="display:none;">
+  <div class="panel" id="arrivalsPanel" data-home="overview" style="display:none;">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('arrivalsBody')"
               aria-expanded="true" aria-controls="arrivalsBody">
@@ -822,7 +853,7 @@
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel" data-home="overview">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('speciesOverviewBody')"
               aria-expanded="true" aria-controls="speciesOverviewBody">
@@ -847,7 +878,7 @@
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel" data-home="patterns">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('historyBody')"
               aria-expanded="true" aria-controls="historyBody">
@@ -860,7 +891,7 @@
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel" data-home="patterns">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('reportBody')"
               aria-expanded="true" aria-controls="reportBody">
@@ -884,7 +915,8 @@
     </div>
   </div>
 
-</main>
+</div>
+
 
 <div class="modal-overlay" id="reportModal" onclick="if(event.target===this) closeReportModal()">
   <div class="modal-card" id="reportModalCard" style="max-width:600px; max-height:85vh;">
@@ -951,8 +983,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.17.1';
-const APP_VERSION_DATE = '2026-08-06';
+const APP_VERSION = '0.18.0';
+const APP_VERSION_DATE = '2026-08-07';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -1558,6 +1590,10 @@ const I18N = {
   notesPlaceholder: {de:"Wetter, Beobachtungen, Auffälligkeiten...", en:"Weather, observations, anything notable..."},
   saveBtn:          {de:"Aufnahme speichern", en:"Save recording"},
   panelOverviewTitle:{de:"Artenübersicht", en:"Species overview"},
+  tabOverview:{de:"Neu & Übersicht", en:"New & overview"},
+  tabLog:{de:"Eintragen", en:"Log"},
+  tabPatterns:{de:"Muster", en:"Patterns"},
+  tabMap:{de:"Karte & Zonen", en:"Map & zones"},
   panelArrivalsTitle:{de:"Neu & bemerkenswert", en:"New & notable"},
   arrivalsRecentHeading:{de:"Zuletzt neu im Garten", en:"Recently new to the garden"},
   arrivalNewest:{de:"neu heute", en:"new today"},
@@ -2539,6 +2575,17 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.18.0', date:'2026-08-07', de:[
+      'Neue Tab-Navigation statt einer langen Seite: „Neu & Übersicht", „Eintragen", „Muster", „Karte & Zonen" — jeder Besuch zeigt nur, was gerade zählt',
+      '„Eintragen" ist jetzt ein eigener, ablenkungsfreier Bereich; „Neu & Übersicht" bündelt Neuzugänge und Artenliste',
+      'Kleiner Punkt am „Neu & Übersicht"-Tab signalisiert neue Nachweise seit dem letzten Öffnen',
+      'Der aktive Tab bleibt beim Neuladen erhalten',
+    ], en:[
+      'New tab navigation instead of one long page: "New & overview", "Log", "Patterns", "Map & zones" — each visit shows only what matters right now',
+      '"Log" is now its own distraction-free view; "New & overview" bundles new arrivals and the species list',
+      'A small dot on the "New & overview" tab signals new detections since you last opened it',
+      'The active tab is remembered across reloads',
+    ]},
   { v:'0.17.1', date:'2026-08-06', de:[
       'Sichtungs-Punkte auf der Karte entfernt — sie waren nur zufällig um den Zonenmittelpunkt gestreut, nicht echte Fundorte, und täuschten so eine Genauigkeit vor, die die Daten nicht haben. Die Karte dient weiterhin zum Platzieren der Zonen.',
     ], en:[
@@ -3355,6 +3402,65 @@ function importData(event){
   event.target.value = '';
 }
 
+// ── Tabbed views ─────────────────────────────────────────────────────────
+// The panels are authored once in #panelStash, then moved into their tab
+// containers on load by data-home. Keeps every panel's markup/IDs/handlers
+// intact — tabs are a regrouping, not a rewrite. Switching is pure show/hide
+// (still one file, still offline, faster than rendering all panels at once).
+const TAB_DEFAULT = 'overview';
+let currentTab = TAB_DEFAULT;
+
+function distributePanels(){
+  const stash = document.getElementById('panelStash');
+  if(!stash) return;
+  stash.querySelectorAll('[data-home]').forEach(panel=>{
+    const dest = document.getElementById('view-' + panel.getAttribute('data-home'));
+    if(dest) dest.appendChild(panel);
+  });
+}
+
+function setTab(tab){
+  currentTab = tab;
+  localStorage.setItem('birdlog:tab', tab);
+  document.querySelectorAll('.tab-view').forEach(v=>{
+    v.classList.toggle('active', v.getAttribute('data-view') === tab);
+  });
+  document.querySelectorAll('.tab-bar .tab').forEach(b=>{
+    const on = b.getAttribute('data-tab') === tab;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  // opening the overview clears the "something new" dot
+  if(tab === 'overview') markArrivalsSeen();
+  // the map needs a size recalc when it becomes visible (was display:none)
+  if(tab === 'map' && typeof map !== 'undefined' && map){
+    requestAnimationFrame(()=>{ map.invalidateSize(); });
+  }
+}
+
+// "New" dot on the overview tab: shown when the latest logged day is newer
+// than the last time the user opened the overview tab.
+function updateNewDot(entries){
+  const dot = document.getElementById('tabNewDot');
+  if(!dot) return;
+  const birdDates = entries.filter(e=>(e.type||'bird')==='bird').map(e=>e.date);
+  if(birdDates.length === 0){ dot.style.display = 'none'; return; }
+  const latest = birdDates.sort()[birdDates.length-1];
+  const seen = localStorage.getItem('birdlog:arrivalsSeen') || '';
+  dot.style.display = (latest > seen && currentTab !== 'overview') ? 'inline-block' : 'none';
+}
+function markArrivalsSeen(){
+  try{
+    const raw = localStorage.getItem('birdlog:entries');
+    if(raw){
+      const dates = JSON.parse(raw).filter(e=>(e.type||'bird')==='bird').map(e=>e.date).sort();
+      if(dates.length) localStorage.setItem('birdlog:arrivalsSeen', dates[dates.length-1]);
+    }
+  }catch(e){}
+  const dot = document.getElementById('tabNewDot');
+  if(dot) dot.style.display = 'none';
+}
+
 // ── Arrivals & residency ─────────────────────────────────────────────────
 // One shared computation over the entries powers two views: the "new &
 // notable" panel (the exciting bit — what just showed up) and the
@@ -3536,6 +3642,7 @@ async function renderAll(){
   try{ renderCalendar(entries); }catch(err){ console.error('renderCalendar failed', err); }
   try{ renderClock(entries); }catch(err){ console.error('renderClock failed', err); }
   try{ renderArrivals(entries); }catch(err){ console.error('renderArrivals failed', err); }
+  try{ updateNewDot(entries); }catch(err){ console.error('updateNewDot failed', err); }
 
   // One table, filtered — birds and night-camera sightings were two identical
   // panels differing only by which entries they were handed.
@@ -3568,6 +3675,8 @@ async function renderAll(){
 }
 
 // init
+distributePanels();
+setTab(localStorage.getItem('birdlog:tab') || TAB_DEFAULT);
 document.body.insertAdjacentHTML('beforeend', speciesDatalistHTML('speciesList', BIRD_DATALIST));
 document.body.insertAdjacentHTML('beforeend', speciesDatalistHTML('nightSpeciesList', NIGHT_SPECIES));
 initTheme();
