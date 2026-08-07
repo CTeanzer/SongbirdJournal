@@ -983,7 +983,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.18.0';
+const APP_VERSION = '0.18.1';
 const APP_VERSION_DATE = '2026-08-07';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1310,9 +1310,9 @@ function habitatVerdictHTML(name, d, zone, loc){
 const AREA_VETO_RULES = {
   Nebelkrähe: {
     // Carrion/Hooded Crow contact zone runs ~diagonally along the Elbe.
-    // Recorder (8.41°E) is well west → Carrion Crow (Rabenkrähe) range.
-    // NOTE: lng < 11 is a coarse meridian proxy — valid for THIS fixed
-    // recorder only; near the zone it needs the real contact-zone geometry.
+    // A recorder west of it → Carrion Crow (Rabenkrähe) range.
+    // NOTE: lng < 11 is a coarse meridian proxy — near the zone it needs the
+    // real contact-zone geometry rather than a single meridian.
     kind: 'reassign',
     applies: loc => loc.lng < 11.0,
     reassignTo: 'Rabenkrähe',
@@ -1357,6 +1357,7 @@ function inRecorderSeedRegion(loc){
 }
 
 function areaVeto(name, loc){
+  if(!locationSet) return null;        // no real location yet → no location-based flags
   loc = loc || center;                 // recorder = map centre; read lazily
   const r = AREA_VETO_RULES[name];
   return (r && r.applies(loc)) ? r : null;
@@ -1716,11 +1717,16 @@ function switchLang(l){
   renderAll();
 }
 
-let center = {lat:52.9027, lng:8.4111};
-// Zone B used to be modelled as a bigger ring around the SAME point as Zone
-// A — wrong; it's a genuinely different place. Second, independent
-// marker/coordinate, decoupled from Zone A entirely.
-let centerB = {lat:52.905189, lng:8.413855};
+// No real location is baked into this file. It starts on a neutral, broad
+// view; the user places their own zones (by dragging the markers or using
+// "my location"), which persists to their browser only. locationSet stays
+// false until that happens — location-dependent checks (range veto) stay
+// inactive until there's a real location to judge against, so a fresh install
+// never shows location-based flags derived from a placeholder point.
+const NEUTRAL_CENTER = {lat:51.1, lng:10.4};   // rough centre of Germany, not anyone's location
+let center = {lat:NEUTRAL_CENTER.lat, lng:NEUTRAL_CENTER.lng};
+let centerB = {lat:NEUTRAL_CENTER.lat + 0.004, lng:NEUTRAL_CENTER.lng + 0.004};
+let locationSet = false;
 let map, marker, markerB, circleA, circleB;
 let currentZone = 'A';
 let currentEntryType = 'bird';
@@ -2575,6 +2581,11 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.18.1', date:'2026-08-07', de:[
+      'Die App startet jetzt ohne vorgegebenen Standort — der Aufnahmeort wird von jedem selbst auf der Karte gesetzt (bestehende eigene Einstellungen bleiben erhalten)',
+    ], en:[
+      'The app now starts without a preset location — each user places their own recording spot on the map (existing personal settings are kept)',
+    ]},
   { v:'0.18.0', date:'2026-08-07', de:[
       'Neue Tab-Navigation statt einer langen Seite: „Neu & Übersicht", „Eintragen", „Muster", „Karte & Zonen" — jeder Besuch zeigt nur, was gerade zählt',
       '„Eintragen" ist jetzt ein eigener, ablenkungsfreier Bereich; „Neu & Übersicht" bündelt Neuzugänge und Artenliste',
@@ -3006,6 +3017,7 @@ function useMyLocation(zone){
 }
 
 async function saveSettings(){
+  locationSet = true;   // saving means the user has placed a real location
   try{
     await db.set('map-settings', JSON.stringify({
       lat: center.lat, lng: center.lng,
@@ -3022,6 +3034,7 @@ async function loadSettings(){
     if(res && res.value){
       const s = JSON.parse(res.value);
       center = {lat:s.lat, lng:s.lng};
+      locationSet = true;   // user has real saved coordinates
       marker.setLatLng([s.lat, s.lng]);
       circleA.setLatLng([s.lat, s.lng]).setRadius(s.radiusA);
       // Settings saved before Zone B had its own location won't have
