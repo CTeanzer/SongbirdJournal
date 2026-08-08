@@ -433,6 +433,23 @@
   .res-dot-resident{background:var(--status-safe);}
   .res-dot-occasional{background:var(--status-near);}
   .res-dot-visitor{background:var(--border);}
+  /* Habitat signature */
+  .sig-sentence{font-size:14px; line-height:1.55; color:var(--text); background:var(--bg-elev); border-left:3px solid var(--accent); border-radius:0 6px 6px 0; padding:12px 14px; margin-bottom:18px;}
+  .sig-cols{display:flex; gap:28px; flex-wrap:wrap;}
+  .sig-col{flex:1; min-width:240px;}
+  .sig-head{font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-dim); margin-bottom:10px;}
+  .sig-row{display:flex; align-items:center; gap:10px; margin-bottom:7px;}
+  .sig-lbl{font-size:12px; width:110px; flex-shrink:0; color:var(--text);}
+  .sig-track{flex:1; height:9px; background:var(--bg-elev); border-radius:5px; overflow:hidden;}
+  .sig-fill{display:block; height:100%; border-radius:5px; background:var(--accent);}
+  .sig-pct{font-size:11px; color:var(--text-dim); width:34px; text-align:right; font-variant-numeric:tabular-nums;}
+  .sig-seed{background:var(--zone-a-line);} .sig-insect{background:var(--status-safe);}
+  .sig-omni{background:var(--accent);} .sig-bark{background:#8b5a2b;}
+  .sig-water{background:var(--type-day-dot);} .sig-aerial{background:var(--zone-b-line);}
+  .sig-ground{background:var(--status-near);} .sig-hab{background:var(--text-dim);}
+  .sig-raptor{background:#7a5c8e;}
+  .sig-caveat{font-size:12px; color:var(--text-dim); margin-top:16px; line-height:1.5; padding-top:12px; border-top:1px solid var(--border);}
+  .panel-intro{font-size:13px; color:var(--text-dim); margin-bottom:16px; line-height:1.5;}
   #methodologyModalBody .src-note{font-size:12px; color:var(--text-dim); margin-top:2px;}
   #methodologyModalBody .method-limit{background:var(--bg-elev); border-left:3px solid var(--accent); padding:10px 12px; margin-top:16px; border-radius:0 6px 6px 0; font-size:13px;}
   #reportModalBody h3{font-size:20px; margin-bottom:2px;}
@@ -802,6 +819,20 @@
     </div>
   </div>
 
+  <div class="panel" data-home="patterns" id="signaturePanel" style="display:none;">
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('signatureBody')"
+              aria-expanded="true" aria-controls="signatureBody">
+        <span data-i18n="panelSignatureTitle">Habitat-Signatur</span>
+        <span class="chevron" id="signatureBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="signatureBody">
+      <div class="panel-intro" data-i18n="signatureIntro">Was die Zusammensetzung deiner Vogelgemeinschaft über den Lebensraum verrät — beschreibend, nicht beweisend.</div>
+      <div id="signatureContent"></div>
+    </div>
+  </div>
+
   <div class="panel" data-home="patterns">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('calendarBody')"
@@ -983,7 +1014,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.18.1';
+const APP_VERSION = '0.19.0';
 const APP_VERSION_DATE = '2026-08-07';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1241,6 +1272,50 @@ const HAB_WORD = {
   W:{de:'Wald',en:'woodland'}, F:{de:'Feld',en:'farmland'}, Wet:{de:'Wasser',en:'water'},
   U:{de:'Siedlung',en:'settlement'}, S:{de:'Gebüsch',en:'scrub'}, Wc:{de:'Nadelwald',en:'conifer'}
 };
+
+// ── Feeding guild (trophic niche) ────────────────────────────────────────
+// The "why does my community look like this" layer, complementing the
+// habitat-affinity table above. Guilds follow AVONET's Trophic.Niche
+// categories (Tobias et al. 2022) collapsed to the coarse groups that
+// actually vary between garden/edge/woodland/wetland assemblages. These are
+// well-established trait assignments for common European birds, not
+// site-specific inferences — a Grünfink is a granivore anywhere. Curated
+// seed for the species that have appeared here; extend as new ones show up.
+//   seed  = granivore / seed-&-plant eater
+//   insect= invertivore (gleans/hawks insects)
+//   omni  = omnivore (mixed animal + plant)
+//   ground= ground-foraging invertivore/omnivore (open habitat feeders)
+//   bark  = bark-foraging specialist (woodland structure indicator)
+//   water = waterbird / wetland forager
+//   aerial= aerial insectivore (hawks insects in flight)
+const GUILD = {
+  seed:   ['Bluthänfling','Grünfink','Stieglitz','Buchfink','Kernbeißer','Gimpel',
+           'Fichtenkreuzschnabel','Haussperling','Türkentaube','Ringeltaube','Hohltaube',
+           'Felsentaube','Turteltaube','Wachtel'],
+  insect: ['Rotkehlchen','Kohlmeise','Blaumeise','Zaunkönig','Zilpzalp','Gelbspötter',
+           'Klappergrasmücke','Teichrohrsänger','Wintergoldhähnchen','Grauschnäpper',
+           'Heckenbraunelle','Schwarzkehlchen','Hausrotschwanz','Wendehals'],
+  omni:   ['Amsel','Elster','Rabenkrähe','Nebelkrähe','Eichelhäher','Dohle','Saatkrähe',
+           'Kolkrabe','Wacholderdrossel','Star'],
+  ground: ['Bachstelze','Brachvogel'],
+  bark:   ['Buntspecht','Mittelspecht','Grünspecht','Kleiber','Gartenbaumläufer','Waldbaumläufer'],
+  water:  ['Kanadagans','Stockente'],
+  aerial: ['Rauchschwalbe','Mehlschwalbe','Uferschwalbe','Mauersegler'],
+  raptor: ['Waldkauz'],
+};
+const GUILD_WORD = {
+  seed:   {de:'Körnerfresser', en:'seed-eaters'},
+  insect: {de:'Insektenfresser', en:'insectivores'},
+  omni:   {de:'Allesfresser', en:'omnivores'},
+  ground: {de:'Bodenfresser', en:'ground foragers'},
+  bark:   {de:'Rinden-Spezialisten', en:'bark specialists'},
+  water:  {de:'Wasservögel', en:'waterbirds'},
+  aerial: {de:'Luftjäger', en:'aerial insectivores'},
+  raptor: {de:'Greifvögel/Eulen', en:'raptors/owls'},
+};
+const SPECIES_GUILD = {};
+Object.entries(GUILD).forEach(([g, names])=> names.forEach(n=> SPECIES_GUILD[n]=g));
+
 function habWord(cat){ const w=HAB_WORD[cat]; return w?w[lang]:cat; }
 
 function habitatPlausible(name, zone){
@@ -1595,6 +1670,11 @@ const I18N = {
   tabLog:{de:"Eintragen", en:"Log"},
   tabPatterns:{de:"Muster", en:"Patterns"},
   tabMap:{de:"Karte & Zonen", en:"Map & zones"},
+  panelSignatureTitle:{de:"Habitat-Signatur", en:"Habitat signature"},
+  signatureIntro:{de:"Was die Zusammensetzung deiner Vogelgemeinschaft über den Lebensraum verrät — beschreibend, nicht beweisend.", en:"What your bird community's composition reflects about the habitat — descriptive, not conclusive."},
+  sigGuilds:{de:"Nahrungsgilden", en:"Feeding guilds"},
+  sigHabitats:{de:"Lebensraum-Bezug", en:"Habitat association"},
+  sigCaveat:{de:"Gewichtet nach Tagen gesehen ({n} von {total} Arten klassifiziert). Dies beschreibt die Zusammensetzung an DEINEM Standort — es ist kein statistischer Indikatorart-Nachweis. Dafür bräuchte es viele Standorte zum Vergleich (IndVal-Methode). Guten Gewissens sagbar: „passt zu“, nicht „beweist“.", en:"Weighted by days seen ({n} of {total} species classified). This describes composition at YOUR site — it is not a statistical indicator-species proof. That would require many sites to compare against (the IndVal method). Honestly sayable: “consistent with”, not “proves”."},
   panelArrivalsTitle:{de:"Neu & bemerkenswert", en:"New & notable"},
   arrivalsRecentHeading:{de:"Zuletzt neu im Garten", en:"Recently new to the garden"},
   arrivalNewest:{de:"neu heute", en:"new today"},
@@ -2581,6 +2661,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.19.0', date:'2026-08-07', de:[
+      'Neuer Bereich „Habitat-Signatur" (unter Muster): zeigt aus welchen Nahrungsgilden und Lebensraum-Bezügen deine Vogelgemeinschaft besteht — z.B. körnerfresser-geprägt, Wald/Siedlung/Feld gemischt, also ein Randhabitat',
+      'Bewusst beschreibend gehalten: „passt zu", nicht „beweist" — ein echter Indikatorart-Nachweis bräuchte viele Vergleichsstandorte. Quellen und Grenzen in der Methodik ergänzt.',
+    ], en:[
+      'New "Habitat signature" section (under Patterns): shows which feeding guilds and habitat associations your bird community is made of — e.g. seed-eater-led, mixed woodland/settlement/farmland, i.e. an edge habitat',
+      'Deliberately descriptive: "consistent with", not "proves" — a real indicator-species test would need many comparison sites. Sources and limits added to the Methodology.',
+    ]},
   { v:'0.18.1', date:'2026-08-07', de:[
       'Die App startet jetzt ohne vorgegebenen Standort — der Aufnahmeort wird von jedem selbst auf der Karte gesetzt (bestehende eigene Einstellungen bleiben erhalten)',
     ], en:[
@@ -2748,6 +2835,9 @@ const METHODOLOGY_CONTENT = {
     <h4>Gefährdungsstatus</h4>
     <p>Rote-Liste-Kategorien stammen aus der <strong>Roten Liste der Brutvögel Deutschlands</strong>, 6. Fassung (Deutscher Rat für Vogelschutz / DDA, veröffentlicht Juni 2021). Nur ausgewählte, im Log tatsächlich aufgetauchte Arten sind hinterlegt — keine vollständige Liste aller ca. 259 deutschen Brutvogelarten.</p>
 
+    <h4>Habitat-Signatur</h4>
+    <p>Der Bereich „Habitat-Signatur" fasst zusammen, aus welchen Nahrungsgilden (nach <strong>AVONET</strong>-Trophie-Kategorien) und Lebensraum-Bezügen deine Gemeinschaft besteht, gewichtet nach Tagen gesehen. Das ist <strong>rein beschreibend</strong>: Es sagt, womit die Zusammensetzung an diesem einen Standort vereinbar ist — nicht, was sie „beweist". Ein echter statistischer Indikatorart-Nachweis (IndVal, Dufrêne &amp; Legendre 1997) bräuchte viele Standorte zum Vergleich; mit einem Rekorder ist das grundsätzlich nicht möglich.</p>
+
     <h4>Übersetzung</h4>
     <p>Deutsch→Englisch läuft primär über eine feste, von Hand gepflegte Tabelle. Optional lässt sich zusätzlich die <strong>eBird/Clements-Taxonomie</strong> (Cornell Lab of Ornithology) live anbinden, wenn ein eigener API-Key hinterlegt wird — sonst bleibt es bei der festen Tabelle.</p>
 
@@ -2769,6 +2859,9 @@ const METHODOLOGY_CONTENT = {
 
     <h4>Conservation status</h4>
     <p>Red List categories come from the <strong>Rote Liste der Brutvögel Deutschlands</strong>, 6th edition (Deutscher Rat für Vogelschutz / DDA, published June 2021). Only species that have actually appeared in this log are covered — not the full list of roughly 259 German breeding bird species.</p>
+
+    <h4>Habitat signature</h4>
+    <p>The "Habitat signature" section summarises which feeding guilds (following <strong>AVONET</strong> trophic categories) and habitat associations your community is made of, weighted by days seen. This is <strong>purely descriptive</strong>: it states what the composition at this one site is consistent with — not what it "proves". A real statistical indicator-species test (IndVal, Dufrêne &amp; Legendre 1997) would require many sites to compare against; with a single recorder that is fundamentally not possible.</p>
 
     <h4>Translation</h4>
     <p>German→English runs primarily off a fixed, hand-maintained table. Optionally, the <strong>eBird/Clements taxonomy</strong> (Cornell Lab of Ornithology) can be connected live if you supply your own API key — otherwise it stays on the fixed table.</p>
@@ -3474,7 +3567,103 @@ function markArrivalsSeen(){
   if(dot) dot.style.display = 'none';
 }
 
-// ── Arrivals & residency ─────────────────────────────────────────────────
+// ── Community habitat signature ──────────────────────────────────────────
+// Describes what the logged community's COMPOSITION reflects — guild mix and
+// habitat-association mix — as a descriptive habitat signature. Explicitly
+// NOT indicator-species statistics: that needs many sites to compare against
+// (IndVal, Dufrêne & Legendre 1997); with one recorder this can only
+// describe, never prove. Every output is phrased "consistent with", and the
+// one-site limit is stated in the UI. Weighted by distinct days seen, so
+// regulars shape the signature more than one-off fly-throughs.
+function communitySignature(entries){
+  const birdEntries = entries.filter(e=>(e.type||'bird')==='bird');
+  const days = {};
+  birdEntries.forEach(e=>{
+    (e.species||[]).forEach(s=>{
+      if(!days[s.name]) days[s.name] = new Set();
+      days[s.name].add(e.date);
+    });
+  });
+  const names = Object.keys(days);
+  if(names.length === 0) return null;
+
+  // weight = distinct days seen (residents count more than visitors)
+  const guildWeight = {}, habWeight = {};
+  let guildTotal = 0, habTotal = 0, classifiedSpecies = 0;
+  names.forEach(n=>{
+    const w = days[n].size;
+    const g = SPECIES_GUILD[n];
+    if(g){ guildWeight[g] = (guildWeight[g]||0) + w; guildTotal += w; classifiedSpecies++; }
+    const habRaw = HABITAT_AFFINITY[n];
+    if(habRaw){
+      const cats = Array.isArray(habRaw) ? habRaw : (habRaw.needs || []);
+      // split the species' weight evenly across the habitats it associates with
+      cats.forEach(c=>{ habWeight[c] = (habWeight[c]||0) + w/cats.length; habTotal += w/cats.length; });
+    }
+  });
+  if(guildTotal === 0) return null;
+
+  const guildPct = Object.entries(guildWeight)
+    .map(([g,w])=>({key:g, pct: Math.round(w/guildTotal*100)}))
+    .sort((a,b)=>b.pct-a.pct);
+  const habPct = Object.entries(habWeight)
+    .map(([c,w])=>({key:c, pct: Math.round(w/habTotal*100)}))
+    .sort((a,b)=>b.pct-a.pct);
+
+  return {guildPct, habPct, classifiedSpecies, totalSpecies: names.length};
+}
+
+// A short, honest habitat-signature sentence derived from the dominant
+// guild + dominant habitat categories. Descriptive templating, not a claim.
+function signatureSentence(sig){
+  if(!sig || !sig.guildPct.length) return '';
+  const topGuild = sig.guildPct[0];
+  const topHabs = sig.habPct.slice(0,2).map(h=>habWord(h.key));
+  const guildW = (GUILD_WORD[topGuild.key]||{})[lang] || topGuild.key;
+  if(lang === 'en'){
+    return `A community led by ${guildW} (${topGuild.pct}%), associated mainly with ${topHabs.join(' and ')} — a mix consistent with a ${topHabs.join('/')} edge habitat.`;
+  }
+  return `Eine Gemeinschaft mit ${guildW} an der Spitze (${topGuild.pct}%), überwiegend mit ${topHabs.join(' und ')} verbunden — ein Mix, der zu einem ${topHabs.join('/')}-Randhabitat passt.`;
+}
+
+function renderSignature(entries){
+  const panel = document.getElementById('signaturePanel');
+  if(!panel) return;
+  const content = document.getElementById('signatureContent');
+  const sig = communitySignature(entries);
+  if(!sig){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  const guildBars = sig.guildPct.map(g=>{
+    const w = (GUILD_WORD[g.key]||{})[lang] || g.key;
+    return `<div class="sig-row"><span class="sig-lbl">${w}</span>
+      <span class="sig-track"><span class="sig-fill sig-${g.key}" style="width:${g.pct}%"></span></span>
+      <span class="sig-pct">${g.pct}%</span></div>`;
+  }).join('');
+
+  const habBars = sig.habPct.map(h=>{
+    return `<div class="sig-row"><span class="sig-lbl">${habWord(h.key)}</span>
+      <span class="sig-track"><span class="sig-fill sig-hab" style="width:${h.pct}%"></span></span>
+      <span class="sig-pct">${h.pct}%</span></div>`;
+  }).join('');
+
+  content.innerHTML = `
+    <div class="sig-sentence">${signatureSentence(sig)}</div>
+    <div class="sig-cols">
+      <div class="sig-col">
+        <div class="sig-head">${t('sigGuilds')}</div>
+        ${guildBars}
+      </div>
+      <div class="sig-col">
+        <div class="sig-head">${t('sigHabitats')}</div>
+        ${habBars}
+      </div>
+    </div>
+    <div class="sig-caveat">${t('sigCaveat').replace('{n}', sig.classifiedSpecies).replace('{total}', sig.totalSpecies)}</div>
+  `;
+}
+
+// ── Community habitat signature (end) ────────────────────────────────────
 // One shared computation over the entries powers two views: the "new &
 // notable" panel (the exciting bit — what just showed up) and the
 // resident/visitor split (the honest bit — most of a long species list is
@@ -3655,6 +3844,7 @@ async function renderAll(){
   try{ renderCalendar(entries); }catch(err){ console.error('renderCalendar failed', err); }
   try{ renderClock(entries); }catch(err){ console.error('renderClock failed', err); }
   try{ renderArrivals(entries); }catch(err){ console.error('renderArrivals failed', err); }
+  try{ renderSignature(entries); }catch(err){ console.error('renderSignature failed', err); }
   try{ updateNewDot(entries); }catch(err){ console.error('updateNewDot failed', err); }
 
   // One table, filtered — birds and night-camera sightings were two identical
