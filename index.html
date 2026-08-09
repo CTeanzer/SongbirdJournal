@@ -413,6 +413,13 @@
   .modal-stats b{display:block; font-size:18px; color:var(--accent); font-variant-numeric:tabular-nums;}
   .modal-stats span{font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em;}
   .modal-extract{font-size:13px; line-height:1.5; color:var(--text);}
+  .modal-history{margin:16px 0 4px;}
+  .dh-head{font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px;}
+  .dh-strip{display:flex; gap:3px; align-items:flex-end; flex-wrap:wrap;}
+  .dh-mark{width:14px; height:14px; border-radius:3px; display:inline-block;}
+  .dh-seen{background:var(--status-safe);}
+  .dh-absent{background:var(--bg-elev); border:1px solid var(--border);}
+  .dh-legend{font-size:11px; color:var(--text-dim); margin-top:8px; line-height:1.4;}
   #guideModalBody h4, #methodologyModalBody h4{margin:18px 0 6px; font-size:14px; color:var(--heading);}
   #guideModalBody h4:first-child, #methodologyModalBody h4:first-child{margin-top:0;}
   #guideModalBody ul, #methodologyModalBody ul{margin:6px 0; padding-left:20px;}
@@ -1046,6 +1053,7 @@
         <div><b id="modalLast">–</b><span data-i18n="colLastSeen">Zuletzt</span></div>
       </div>
       <div class="modal-extract" id="modalExtract" data-i18n="loadingText">Lade Daten…</div>
+      <div class="modal-history" id="modalHistory"></div>
       <div class="modal-attr" id="modalAttr"></div>
       <div class="modal-verify" id="modalVerify"></div>
     </div>
@@ -1060,7 +1068,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.21.1';
+const APP_VERSION = '0.22.0';
 const APP_VERSION_DATE = '2026-08-09';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1906,6 +1914,10 @@ const I18N = {
   colTotal:         {de:"Akust. Erkennungen", en:"Acoustic detections"},
   colConfidence:    {de:"Ø Konfidenz", en:"Avg. confidence"},
   colLastSeen:      {de:"Zuletzt", en:"Last seen"},
+  dhTitle:          {de:"Nachweis-Verlauf (nur erfasste Tage)", en:"Detection history (logged days only)"},
+  dhNotDetected:    {de:"an diesem Tag erfasst, aber nicht nachgewiesen", en:"logged this day, but not detected"},
+  dhDetections:     {de:"akust. Erkennungen", en:"acoustic detections"},
+  dhLegend:         {de:"An {seen} von {total} erfassten Tagen nachgewiesen. Gefüllt = nachgewiesen (dunkler = mehr Erkennungen), leer = an dem Tag erfasst, aber nicht gehört. Lücken zwischen Erfassungstagen sind hier bewusst nicht dargestellt.", en:"Detected on {seen} of {total} logged days. Filled = detected (darker = more detections), empty = logged that day but not heard. Gaps between logging days are deliberately not shown here."},
   emptyOverview:    {de:"Noch keine Aufnahmen geloggt. Trag deine erste Session oben ein.", en:"No recordings logged yet. Add your first session above."},
   emptyHistory:     {de:"Der Verlauf füllt sich mit jeder gespeicherten Aufnahme.", en:"Your history fills in with every recording you save."},
   deleteBtn:        {de:"löschen", en:"delete"},
@@ -2337,6 +2349,7 @@ async function openSpeciesModal(name, stats){
   document.getElementById('modalExtract').textContent = t('loadingText');
   document.getElementById('modalAttr').innerHTML = '';
   renderModalVerify(name);
+  renderDetectionHistory(name);
   const img = document.getElementById('modalImg');
   img.style.display = 'none';
   modal.classList.add('open');
@@ -2853,6 +2866,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.22.0', date:'2026-08-09', de:[
+      'Nachweis-Verlauf je Art: im Detail-Dialog zeigt ein kleiner Streifen, an welchen erfassten Tagen die Art nachgewiesen wurde (dunkler = mehr Erkennungen) — macht Muster wie „nur früh im Zeitraum" sichtbar',
+      'Bewusst ehrlich: Achse sind nur erfasste Tage, keine Kalender-Linie — Aufnahmelücken werden nicht als Abwesenheit dargestellt, kein Trend suggeriert',
+    ], en:[
+      'Per-species detection history: the detail dialog shows a small strip of which logged days the species was detected (darker = more detections) — makes patterns like "only early in the period" visible',
+      'Deliberately honest: the axis is logged days only, not a calendar line — recording gaps are not shown as absence, and no trend is implied',
+    ]},
   { v:'0.21.1', date:'2026-08-09', de:[
       'Spalte „Gesamt Individuen" in „Akust. Erkennungen" umbenannt — sie zählt BirdNET-Erkennungen, keine Vögel',
       'Englische Namen für viele weitere Arten ergänzt (u.a. Baumpieper, Singdrossel) — kein Deutsch/Englisch-Mix mehr in der englischen Ansicht',
@@ -4051,6 +4071,56 @@ function normalizeObservation(s){
 function migrateEntryObservations(entry){
   if(Array.isArray(entry.species)) entry.species = entry.species.map(normalizeObservation);
   return entry;
+}
+
+// ── Detection history (per species) ──────────────────────────────────────
+// Honest temporal view: for one species, which of the days you ACTUALLY
+// logged did it get detected, and how many detections that day. The axis is
+// logged-days, not calendar-days — so a gap where you didn't record never
+// masquerades as "the bird was absent". No trend line, no trajectory implied:
+// just presence + detection-intensity across the days you were listening.
+async function detectionHistory(name){
+  let entries = [];
+  try{
+    const res = await db.get('entries');
+    entries = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ entries = []; }
+  const bird = entries.filter(e=>(e.type||'bird')==='bird');
+  // detections of THIS species per date, and the set of all logged dates
+  const perDay = {};              // date → detections of this species
+  const loggedDays = new Set();
+  bird.forEach(e=>{
+    loggedDays.add(e.date);
+    (e.species||[]).forEach(s=>{
+      if((s.species||s.name) === name){
+        perDay[e.date] = (perDay[e.date]||0) + obsDetections(s);
+      }
+    });
+  });
+  const days = Array.from(loggedDays).sort();
+  const maxDet = Math.max(1, ...Object.values(perDay));
+  return days.map(d=>({date:d, detections: perDay[d]||0, seen: !!perDay[d], intensity: (perDay[d]||0)/maxDet}));
+}
+
+async function renderDetectionHistory(name){
+  const box = document.getElementById('modalHistory');
+  if(!box) return;
+  box.innerHTML = '';
+  const hist = await detectionHistory(name);
+  if(hist.length < 2) return;   // nothing meaningful to show for a single day
+  const seenDays = hist.filter(h=>h.seen).length;
+  const marks = hist.map(h=>{
+    if(!h.seen) return `<span class="dh-mark dh-absent" title="${h.date}: ${t('dhNotDetected')}"></span>`;
+    // detected: fill opacity scales with detection count that day (intensity),
+    // but every detected day is clearly filled (min floor) so presence reads first
+    const op = (0.45 + 0.55*h.intensity).toFixed(2);
+    return `<span class="dh-mark dh-seen" style="opacity:${op}" title="${h.date}: ${h.detections} ${t('dhDetections')}"></span>`;
+  }).join('');
+  box.innerHTML = `
+    <div class="dh-head">${t('dhTitle')}</div>
+    <div class="dh-strip">${marks}</div>
+    <div class="dh-legend">${t('dhLegend').replace('{seen}', seenDays).replace('{total}', hist.length)}</div>
+  `;
 }
 
 function buildSpeciesStats(entries){
