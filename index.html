@@ -376,6 +376,13 @@
   .entry-date{font-weight:700; color:var(--accent);}
   .entry-species{color:var(--text-dim); font-size:12px; margin-top:4px;}
   .del-entry{background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px;}
+  .edit-entry{background:none; border:none; color:var(--accent); cursor:pointer; font-size:12px;}
+  .edit-individuals{display:flex; flex-direction:column; gap:6px; margin-top:4px;}
+  .ind-row{display:flex; align-items:center; gap:10px;}
+  .ind-name{flex:1; font-size:13px;}
+  .ind-det{font-size:11px; color:var(--text-dim); white-space:nowrap;}
+  .ind-input{width:64px; padding:5px 8px; border:1px solid var(--border); border-radius:5px; background:var(--bg-elev); color:var(--text); font-size:13px;}
+  .field-hint{font-size:11px; color:var(--text-dim); margin-top:6px; line-height:1.4;}
   .empty-state{color:var(--text-dim); font-size:13px; text-align:center; padding:20px 0;}
   .loading{color:var(--text-dim); font-size:13px; padding:10px;}
 
@@ -951,6 +958,43 @@
 </div>
 
 
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this) closeEditModal()">
+  <div class="modal-card" style="max-width:480px;">
+    <button class="modal-close" onclick="closeEditModal()">×</button>
+    <div class="modal-body" style="padding:24px;">
+      <h3 style="margin-bottom:16px;" data-i18n="editTitle">Eintrag bearbeiten</h3>
+      <input type="hidden" id="editEntryId">
+      <div class="slider-row">
+        <div class="slider-group">
+          <label class="field-label" data-i18n="labelDate">Datum</label>
+          <input type="date" id="editDate">
+        </div>
+        <div class="slider-group">
+          <label class="field-label" data-i18n="labelTime">Uhrzeit</label>
+          <input type="time" id="editTime">
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="field-label" data-i18n="labelZone">Zone</label>
+        <div class="zone-toggle" id="editZoneToggle">
+          <button type="button" class="zone-btn" data-zone="A" onclick="setEditZone('A')">Zone A</button>
+          <button type="button" class="zone-btn" data-zone="B" onclick="setEditZone('B')">Zone B</button>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="field-label" data-i18n="labelNotes">Notizen (Wetter, Beobachtungen…)</label>
+        <textarea id="editNotes" rows="3" data-i18n-placeholder="notesPlaceholder" placeholder="Wetter, Beobachtungen, Auffälligkeiten..."></textarea>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="field-label" data-i18n="labelIndividuals">Individuen (nur wenn visuell gezählt)</label>
+        <div id="editIndividuals" class="edit-individuals"></div>
+        <div class="field-hint" data-i18n="individualsHint">Optional — nur ausfüllen, wenn du Vögel tatsächlich gesehen und gezählt hast. Bleibt sonst leer (akustische Erkennungen sind keine Vogelzahl).</div>
+      </div>
+      <button class="save-btn" onclick="saveEditEntry()" data-i18n="editSaveBtn" style="margin-top:16px;">Änderungen speichern</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="reportModal" onclick="if(event.target===this) closeReportModal()">
   <div class="modal-card" id="reportModalCard" style="max-width:600px; max-height:85vh;">
     <button class="modal-close no-print" onclick="closeReportModal()">×</button>
@@ -1016,7 +1060,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.20.0';
+const APP_VERSION = '0.21.0';
 const APP_VERSION_DATE = '2026-08-09';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1084,7 +1128,10 @@ const SPECIES_EN = {
   "Brachvogel": "Eurasian Curlew",
   "Heckenbraunelle": "Dunnock",
   "Uferschwalbe": "Sand Martin",
-  "Wendehals": "Eurasian Wryneck"
+  "Wendehals": "Eurasian Wryneck",
+  "Schwarzkehlchen": "European Stonechat",
+  "Waldohreule": "Long-eared Owl",
+  "Star": "Common Starling"
 };
 
 const NIGHT_SPECIES = ["Fuchs","Igel","Reh","Wildschwein","Dachs","Steinmarder","Waschbär","Feldhase","Waldkauz","Steinkauz","Hauskatze"];
@@ -1131,9 +1178,13 @@ const SPECIES_STATUS = {
 // Storage always keeps the German canonical name (so historical data stays
 // consistent across language switches). This just controls what's shown.
 function speciesLabel(name){
-  const live = EBIRD_DE_TO_EN[name];
-  const en = (lang === 'en') ? (live || SPECIES_EN[name]) : null;
-  if(en) return en + ' (' + name + ')';
+  // In English mode, show the clean English common name (no "English (German)"
+  // bracket form). Fall back to the German name only if no English name is
+  // known — better a real name than a blank. In German mode, always German.
+  if(lang === 'en'){
+    const en = EBIRD_DE_TO_EN[name] || SPECIES_EN[name];
+    return en || name;
+  }
   return name;
 }
 
@@ -1318,8 +1369,8 @@ async function loadAvonetTraits(){
 const AVONET_NICHE_TO_GUILD = {
   'Granivore':'seed', 'Invertivore':'insect', 'Omnivore':'omni',
   'Aquatic predator':'water', 'Frugivore':'frugivore', 'Nectarivore':'nectar',
-  'Herbivore terrestrial':'ground', 'Herbivore aquatic':'water',
-  'Vertivore':'raptor', 'Scavenger':'omni'
+  'Herbivore terrestrial':'ground', 'Herbivore aquatic':'ground',
+  'Vertivore':'raptor', 'Scavenger':'scavenger'
 };
 
 // Small offline fallback for common Central-European species, keyed by German
@@ -1336,24 +1387,26 @@ const GUILD_FALLBACK = {
   Amsel:'omni', Elster:'omni', Rabenkrähe:'omni', Nebelkrähe:'omni', Eichelhäher:'omni', Dohle:'omni',
   Saatkrähe:'omni', Kolkrabe:'omni', Wacholderdrossel:'omni', Star:'omni',
   Bachstelze:'ground', Brachvogel:'ground',
-  Buntspecht:'bark', Mittelspecht:'bark', Grünspecht:'bark', Kleiber:'bark',
-  Gartenbaumläufer:'bark', Waldbaumläufer:'bark',
-  Kanadagans:'water', Stockente:'water',
+  Buntspecht:'insect', Mittelspecht:'insect', Grünspecht:'insect', Kleiber:'insect',
+  Gartenbaumläufer:'insect', Waldbaumläufer:'insect',
+  Kanadagans:'ground', Stockente:'water',
   Rauchschwalbe:'aerial', Mehlschwalbe:'aerial', Uferschwalbe:'aerial', Mauersegler:'aerial',
   Waldkauz:'raptor', Waldohreule:'raptor'
 };
 
 const GUILD_WORD = {
-  seed:   {de:'Körnerfresser', en:'seed-eaters'},
-  insect: {de:'Insektenfresser', en:'insectivores'},
-  omni:   {de:'Allesfresser', en:'omnivores'},
-  ground: {de:'Bodenfresser', en:'ground foragers'},
-  bark:   {de:'Rinden-Spezialisten', en:'bark specialists'},
-  water:  {de:'Wasservögel', en:'waterbirds'},
-  aerial: {de:'Luftjäger', en:'aerial insectivores'},
-  raptor: {de:'Greifvögel/Eulen', en:'raptors/owls'},
-  frugivore:{de:'Fruchtfresser', en:'frugivores'},
-  nectar: {de:'Nektarfresser', en:'nectarivores'},
+  // Labels match AVONET's Trophic.Niche categories (Pigot et al. 2020 /
+  // Tobias et al. 2022) — the standard foraging-guild terms, not invented ones.
+  seed:   {de:'Körnerfresser (Granivore)', en:'granivores (seed-eaters)'},
+  insect: {de:'Insektenfresser (Invertivore)', en:'invertivores (insectivores)'},
+  omni:   {de:'Allesfresser (Omnivore)', en:'omnivores'},
+  ground: {de:'Pflanzenfresser, terrestrisch', en:'terrestrial herbivores'},
+  water:  {de:'Wasser-Beutegreifer', en:'aquatic predators'},
+  aerial: {de:'Luftinsektenjäger', en:'aerial insectivores'},
+  raptor: {de:'Wirbeltierjäger (Vertivore)', en:'vertivores (raptors)'},
+  frugivore:{de:'Fruchtfresser (Frugivore)', en:'frugivores'},
+  nectar: {de:'Nektarfresser (Nektarivore)', en:'nectarivores'},
+  scavenger:{de:'Aasfresser', en:'scavengers'},
   other:  {de:'Sonstige', en:'other'},
 };
 
@@ -1812,6 +1865,16 @@ const I18N = {
   emptyOverview:    {de:"Noch keine Aufnahmen geloggt. Trag deine erste Session oben ein.", en:"No recordings logged yet. Add your first session above."},
   emptyHistory:     {de:"Der Verlauf füllt sich mit jeder gespeicherten Aufnahme.", en:"Your history fills in with every recording you save."},
   deleteBtn:        {de:"löschen", en:"delete"},
+  editBtn:          {de:"bearbeiten", en:"edit"},
+  labelIndividuals: {de:"Individuen (nur wenn visuell gezählt)", en:"Individuals (only if visually counted)"},
+  individualsHint:  {de:"Optional — nur ausfüllen, wenn du Vögel tatsächlich gesehen und gezählt hast. Bleibt sonst leer (akustische Erkennungen sind keine Vogelzahl).", en:"Optional — only fill in if you actually saw and counted birds. Leave empty otherwise (acoustic detections are not a bird count)."},
+  editTitle:        {de:"Eintrag bearbeiten", en:"Edit entry"},
+  editSaveBtn:      {de:"Änderungen speichern", en:"Save changes"},
+  editSaved:        {de:"Eintrag aktualisiert", en:"Entry updated"},
+  labelDate:        {de:"Datum", en:"Date"},
+  labelTime:        {de:"Uhrzeit", en:"Time"},
+  labelZone:        {de:"Zone", en:"Zone"},
+  labelNotes:       {de:"Notizen (Wetter, Beobachtungen…)", en:"Notes (weather, observations…)"},
   alertNeedSpecies: {de:"Bitte mindestens eine Art eintragen.", en:"Please add at least one species."},
   alertSaveRetry:   {de:"Speichern fehlgeschlagen. Bitte erneut versuchen.", en:"Save failed. Please try again."},
   alertSaveFailed:  {de:"Speichern fehlgeschlagen.", en:"Save failed."},
@@ -2746,6 +2809,22 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.21.0', date:'2026-08-09', de:[
+      'Beobachtungsmodell überarbeitet: „count" heißt jetzt ehrlich „akustische Erkennungen" (BirdNET zählt Rufe, nicht Vögel); zusätzlich min/mittel/max-Konfidenz und Quelle je Nachweis',
+      'Neues, optionales Feld „Individuen" — nur ausfüllbar, wenn du Vögel visuell gezählt hast; bleibt sonst leer und wird nie aus Erkennungen abgeleitet',
+      'Bestehende Einträge werden automatisch und verlustfrei ins neue Format migriert',
+    ], en:[
+      'Observation model reworked: "count" is now honestly "acoustic detections" (BirdNET counts calls, not birds); plus min/mean/max confidence and source per record',
+      'New optional "individuals" field — fillable only when you visually counted birds; stays empty otherwise and is never derived from detections',
+      'Existing entries are migrated to the new format automatically and losslessly',
+    ]},
+  { v:'0.20.1', date:'2026-08-09', de:[
+      'Eintrag bearbeiten funktioniert jetzt: Datum, Uhrzeit, Zone und Notizen (Wetter, Beobachtungen) je Eintrag änderbar — der Bearbeiten-Dialog ließ sich vorher nicht öffnen',
+      'Englische Artnamen für zuletzt ergänzte Arten vervollständigt (u.a. Waldohreule, Schwarzkehlchen) — keine deutschen Namen mehr im englischen Modus',
+    ], en:[
+      'Editing an entry works now: date, time, zone and notes (weather, observations) can be changed per entry — the edit dialog previously would not open',
+      'Completed English names for recently added species (incl. Long-eared Owl, Stonechat) — no more German names showing in English mode',
+    ]},
   { v:'0.20.0', date:'2026-08-09', de:[
       'Volle AVONET-Datenbank eingebunden (10.654 Vogelarten weltweit): Gilden UND globale Lebensraum-Zuordnung kommen jetzt aus echten Trait-Daten, nicht aus einer Näherung — die Habitat-Signatur funktioniert damit für Vögel überall',
       'Lädt aus avonet-traits.json (muss neben index.html liegen); fehlt die Datei, greift automatisch die eingebaute Notfall-Tabelle für mitteleuropäische Arten',
@@ -3087,7 +3166,7 @@ async function generateReport(){
     if(!dayAgg[e.date]) dayAgg[e.date] = new Set();
     (Array.isArray(e.species)?e.species:[]).forEach(s=>{
       if(!speciesAgg[s.name]) speciesAgg[s.name] = {total:0, days:new Set()};
-      speciesAgg[s.name].total += s.count;
+      speciesAgg[s.name].total += obsDetections(s);
       speciesAgg[s.name].days.add(e.date);
       dayAgg[e.date].add(s.name);
     });
@@ -3447,14 +3526,14 @@ function collectSpecies(){
   rows.forEach(row=>{
     const inputs = row.querySelectorAll('input');
     const name = inputs[0].value.trim();
-    const count = +inputs[1].value || 1;
+    const detCount = +inputs[1].value || 1;
     const confidenceVal = inputs[2].value.trim();
-    const entry = {name, count};
+    const obs = {name, acousticDetections: detCount, individuals: null, detections: [], source: 'manual'};
     if(confidenceVal !== ''){
       const c = Math.max(0, Math.min(100, +confidenceVal)) / 100;
-      entry.detections = [{c}];
+      obs.detections = [{c}];
     }
-    if(name) species.push(entry);
+    if(name) species.push(normalizeObservation(obs));
   });
   return species;
 }
@@ -3511,6 +3590,72 @@ async function saveEntry(){
 }
 
 let pendingUndo = null;
+
+let editZone = 'A';
+function setEditZone(z){
+  editZone = z;
+  document.querySelectorAll('#editZoneToggle .zone-btn').forEach(b=>{
+    b.classList.toggle('active', b.getAttribute('data-zone') === z);
+  });
+}
+
+async function openEditEntry(id){
+  try{
+    const existing = await db.get('entries');
+    const entries = JSON.parse(existing.value);
+    const e = entries.find(x=>x.id === id);
+    if(!e) return;
+    document.getElementById('editEntryId').value = id;
+    document.getElementById('editDate').value = e.date || '';
+    document.getElementById('editTime').value = e.time || '';
+    document.getElementById('editNotes').value = e.notes || '';
+    // per-species optional visual individual counts
+    const indBox = document.getElementById('editIndividuals');
+    indBox.innerHTML = (Array.isArray(e.species) ? e.species : []).map((s, i)=>{
+      const nm = speciesLabel(s.species || s.name);
+      const val = (typeof s.individuals === 'number') ? s.individuals : '';
+      const det = obsDetections(s);
+      return `<div class="ind-row">
+        <span class="ind-name">${nm}</span>
+        <span class="ind-det">${det}× akustisch</span>
+        <input type="number" min="0" step="1" class="ind-input" data-idx="${i}" value="${val}" placeholder="–">
+      </div>`;
+    }).join('');
+    setEditZone(e.zone === 'B' ? 'B' : 'A');
+    document.getElementById('editModal').classList.add('open');
+  }catch(err){ console.error('openEditEntry failed', err); }
+}
+
+function closeEditModal(){
+  document.getElementById('editModal').classList.remove('open');
+}
+
+async function saveEditEntry(){
+  const id = document.getElementById('editEntryId').value;
+  try{
+    const existing = await db.get('entries');
+    const entries = JSON.parse(existing.value);
+    const e = entries.find(x=>x.id === id);
+    if(!e) return;
+    e.date = document.getElementById('editDate').value || e.date;
+    e.time = document.getElementById('editTime').value || '';
+    e.zone = editZone;
+    e.notes = document.getElementById('editNotes').value.trim();
+    // write back optional visual individual counts (empty → null, never 0-forced)
+    document.querySelectorAll('#editIndividuals .ind-input').forEach(inp=>{
+      const idx = +inp.dataset.idx;
+      if(Array.isArray(e.species) && e.species[idx]){
+        const v = inp.value.trim();
+        e.species[idx].individuals = (v === '') ? null : Math.max(0, parseInt(v, 10) || 0);
+      }
+    });
+    await db.set('entries', JSON.stringify(entries));
+    if(typeof fileSync !== 'undefined') fileSync.scheduleWrite();
+    closeEditModal();
+    renderAll();
+    showToast(t('editSaved'));
+  }catch(err){ console.error('saveEditEntry failed', err); }
+}
 
 async function deleteEntry(id){
   try{
@@ -3801,6 +3946,62 @@ function speciesResidency(daysSeen, totalLoggedDays){
   return 'occasional';
 }
 
+// ── Species-observation model ────────────────────────────────────────────
+// A logged species within an entry. The stored shape has evolved, so these
+// accessors read either the new or the legacy form — nothing breaks on old
+// data, and new data is richer. Canonical fields:
+//   species            — name (unchanged)
+//   acousticDetections — how many times BirdNET detected it (was: count).
+//                        NOT a bird count: one bird calling 9× reads as 9.
+//   individuals        — manual visual count, or null. NEVER derived from
+//                        detections — only set when a human actually counted.
+//   detections[]       — per-detection confidences { c }
+//   meanConfidence / maxConfidence / minConfidence — computed from detections
+//   source             — 'birdnet' | 'manual' | 'visual'
+//   verification       — per-observation confirm/reject (optional)
+function obsDetections(s){
+  if(typeof s.acousticDetections === 'number') return s.acousticDetections;
+  if(typeof s.count === 'number') return s.count;
+  return Array.isArray(s.detections) ? s.detections.length : 0;
+}
+function obsIndividuals(s){
+  return (typeof s.individuals === 'number') ? s.individuals : null;
+}
+function obsConfidences(s){
+  return Array.isArray(s.detections) ? s.detections.map(d=>d.c).filter(c=>typeof c==='number') : [];
+}
+function obsConfStats(s){
+  const cs = obsConfidences(s);
+  if(!cs.length) return {mean:null, max:null, min:null};
+  const sum = cs.reduce((a,b)=>a+b,0);
+  return {mean: sum/cs.length, max: Math.max(...cs), min: Math.min(...cs)};
+}
+function obsSource(s){
+  if(s.source) return s.source;
+  return Array.isArray(s.detections) && s.detections.length ? 'birdnet' : 'manual';
+}
+function normalizeObservation(s){
+  const stats = obsConfStats(s);
+  const out = {
+    species: s.species || s.name,
+    acousticDetections: obsDetections(s),
+    individuals: obsIndividuals(s),
+    detections: Array.isArray(s.detections) ? s.detections : [],
+    meanConfidence: stats.mean,
+    maxConfidence: stats.max,
+    minConfidence: stats.min,
+    source: obsSource(s),
+  };
+  if(s.verification) out.verification = s.verification;
+  out.name = out.species;          // legacy readers still work
+  out.count = out.acousticDetections;
+  return out;
+}
+function migrateEntryObservations(entry){
+  if(Array.isArray(entry.species)) entry.species = entry.species.map(normalizeObservation);
+  return entry;
+}
+
 function buildSpeciesStats(entries){
   const agg = {};
   const loggedDays = new Set();
@@ -3890,7 +4091,7 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
     const zone = e.zone === 'B' ? 'B' : 'A';
     (Array.isArray(e.species) ? e.species : []).forEach(s=>{
       if(!agg[s.name]) agg[s.name] = {total:0, days:new Set(), first:e.date, last:e.date, confidences:[], sessions:new Set(), zones:new Set()};
-      agg[s.name].total += s.count;
+      agg[s.name].total += obsDetections(s);
       agg[s.name].days.add(e.date);
       agg[s.name].sessions.add(e.id || (e.date + (e.time || '')));
       agg[s.name].zones.add(zone);
@@ -3948,6 +4149,27 @@ async function renderAll(){
     entries = res && res.value ? JSON.parse(res.value) : [];
   }catch(e){ entries = []; }
 
+  // One-time migration to the canonical species-observation shape. Runs once
+  // (guarded by a stored flag), rewrites entries in place, and persists. The
+  // accessors above make this non-destructive either way — this just makes
+  // the stored form canonical (adds acousticDetections, conf stats, source;
+  // preserves any manual individuals; never invents one).
+  try{
+    if(entries.length && localStorage.getItem('birdlog:obsModelV1') !== 'done'){
+      let changed = false;
+      entries.forEach(e=>{
+        if(Array.isArray(e.species) && e.species.some(s=> s.acousticDetections === undefined)){
+          migrateEntryObservations(e); changed = true;
+        }
+      });
+      if(changed){
+        await db.set('entries', JSON.stringify(entries));
+        if(typeof fileSync !== 'undefined' && fileSync.scheduleWrite) fileSync.scheduleWrite();
+      }
+      localStorage.setItem('birdlog:obsModelV1', 'done');
+    }
+  }catch(err){ console.error('obs migration failed', err); }
+
   try{
     const rv = await db.get('verifications');
     verifications = rv && rv.value ? JSON.parse(rv.value) : {};
@@ -3984,9 +4206,10 @@ async function renderAll(){
           <span class="entry-date">${e.date} ${e.time || ''}</span>
           <span class="zone-tag ${(e.type==='night') ? 'tag-night' : 'tag-day'}">${(e.type==='night') ? t('tagNight') : t('tagDay')}</span>
           <span class="zone-tag ${e.zone==='A' ? 'zone-a' : 'zone-b'}">Zone ${e.zone}</span>
+          <button class="edit-entry" onclick="openEditEntry('${e.id}')">${t('editBtn')}</button>
           <button class="del-entry" onclick="deleteEntry('${e.id}')">${t('deleteBtn')}</button>
         </div>
-        <div class="entry-species">${(Array.isArray(e.species)?e.species:[]).map(s=>`${speciesLabel(s.name)} ×${s.count}`).join(' · ')}</div>
+        <div class="entry-species">${(Array.isArray(e.species)?e.species:[]).map(s=>`${speciesLabel(s.name)} ×${obsDetections(s)}${obsIndividuals(s)!==null?` (${obsIndividuals(s)} Ind.)`:``}`).join(' · ')}</div>
         ${e.notes ? `<div class="entry-species" style="font-style:italic; margin-top:2px;">${e.notes}</div>` : ''}
       </div>
     `).join('');
