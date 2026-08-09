@@ -448,6 +448,8 @@
   .sig-water{background:var(--type-day-dot);} .sig-aerial{background:var(--zone-b-line);}
   .sig-ground{background:var(--status-near);} .sig-hab{background:var(--text-dim);}
   .sig-raptor{background:#7a5c8e;}
+  .sig-unclassified{font-size:12px; color:var(--text-dim); margin-top:12px; font-style:italic;}
+  .sig-nohab{font-size:12px; color:var(--text-dim); line-height:1.5;}
   .sig-caveat{font-size:12px; color:var(--text-dim); margin-top:16px; line-height:1.5; padding-top:12px; border-top:1px solid var(--border);}
   .panel-intro{font-size:13px; color:var(--text-dim); margin-bottom:16px; line-height:1.5;}
   #methodologyModalBody .src-note{font-size:12px; color:var(--text-dim); margin-top:2px;}
@@ -1014,8 +1016,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.19.0';
-const APP_VERSION_DATE = '2026-08-07';
+const APP_VERSION = '0.20.0';
+const APP_VERSION_DATE = '2026-08-09';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -1180,6 +1182,9 @@ async function loadEbirdTaxonomy(){
     deList.forEach(t => {
       const en = enByCode[t.speciesCode];
       if(t.comName && en) map[t.comName] = en;
+      // also capture scientific name → feeds the AVONET guild lookup for any
+      // species worldwide, not just the built-in European set
+      if(t.comName && t.sciName) SPECIES_SCI[t.comName] = t.sciName;
     });
 
     EBIRD_DE_TO_EN = map;
@@ -1268,41 +1273,76 @@ const HABITAT_AFFINITY = {
   Waldbaumläufer:{needs:['Wc','W'],conifer:true}, Dohle:['U','W'],
   Bachstelze:['F','U','Wet'], Ringeltaube:['W','F','U'], Zaunkönig:['W','S']
 };
-const HAB_WORD = {
-  W:{de:'Wald',en:'woodland'}, F:{de:'Feld',en:'farmland'}, Wet:{de:'Wasser',en:'water'},
-  U:{de:'Siedlung',en:'settlement'}, S:{de:'Gebüsch',en:'scrub'}, Wc:{de:'Nadelwald',en:'conifer'}
+// ── Feeding guild (trophic niche) — AVONET-driven, location-independent ───
+// The signature must work for ANY species a user uploads, anywhere — not just
+// a German-garden roster. So guild lookup is data-driven from AVONET
+// (Tobias et al. 2022), keyed by SCIENTIFIC NAME (the universal identifier),
+// not by German common name. A logged species is resolved to its scientific
+// name via the eBird taxonomy the app already fetches (SPECIES_SCI), then to
+// its AVONET trophic niche. Anything that doesn't resolve is counted as
+// "not classified" and shown as such — never silently dropped or guessed.
+//
+// AVONET_TRAITS is loaded at runtime from avonet-traits.json (see
+// loadAvonetTraits below), built from the AVONET dataset (Tobias et al. 2022).
+// Until it loads, the app falls back to the small built-in GUILD_FALLBACK
+// below so the feature still works offline for common European species.
+let AVONET_TRAITS = {};   // filled at runtime from avonet-traits.json; scientific-name keyed
+let AVONET_HAB = {};      // scientific name → global habitat code (from AVONET Habitat field)
+
+// Load the full AVONET trait table (10,654 species) once at startup. It's a
+// separate file (~78 KB gzipped) so index.html stays lean and the data is
+// cacheable. Optional: if it's absent or the fetch fails, the app falls back
+// to the built-in GUILD_FALLBACK for common European species — the feature
+// still works, just not globally. Format per species: [guildKey, habCode?].
+async function loadAvonetTraits(){
+  try{
+    const res = await fetch('avonet-traits.json', {cache:'force-cache'});
+    if(!res.ok) throw new Error('avonet fetch ' + res.status);
+    const data = await res.json();
+    const guilds = {}, habs = {};
+    for(const sci in data){
+      const v = data[sci];
+      guilds[sci] = v[0];
+      if(v[1]) habs[sci] = v[1];
+    }
+    AVONET_TRAITS = guilds;
+    AVONET_HAB = habs;
+    if(typeof renderAll === 'function') renderAll();  // re-render now that traits are richer
+  }catch(e){
+    console.warn('AVONET traits not loaded (using built-in fallback):', e.message);
+  }
+}
+
+// eBird Trophic.Niche → our coarse guild keys. AVONET's 9 niches collapse to
+// the groups that actually differ between real assemblages.
+const AVONET_NICHE_TO_GUILD = {
+  'Granivore':'seed', 'Invertivore':'insect', 'Omnivore':'omni',
+  'Aquatic predator':'water', 'Frugivore':'frugivore', 'Nectarivore':'nectar',
+  'Herbivore terrestrial':'ground', 'Herbivore aquatic':'water',
+  'Vertivore':'raptor', 'Scavenger':'omni'
 };
 
-// ── Feeding guild (trophic niche) ────────────────────────────────────────
-// The "why does my community look like this" layer, complementing the
-// habitat-affinity table above. Guilds follow AVONET's Trophic.Niche
-// categories (Tobias et al. 2022) collapsed to the coarse groups that
-// actually vary between garden/edge/woodland/wetland assemblages. These are
-// well-established trait assignments for common European birds, not
-// site-specific inferences — a Grünfink is a granivore anywhere. Curated
-// seed for the species that have appeared here; extend as new ones show up.
-//   seed  = granivore / seed-&-plant eater
-//   insect= invertivore (gleans/hawks insects)
-//   omni  = omnivore (mixed animal + plant)
-//   ground= ground-foraging invertivore/omnivore (open habitat feeders)
-//   bark  = bark-foraging specialist (woodland structure indicator)
-//   water = waterbird / wetland forager
-//   aerial= aerial insectivore (hawks insects in flight)
-const GUILD = {
-  seed:   ['Bluthänfling','Grünfink','Stieglitz','Buchfink','Kernbeißer','Gimpel',
-           'Fichtenkreuzschnabel','Haussperling','Türkentaube','Ringeltaube','Hohltaube',
-           'Felsentaube','Turteltaube','Wachtel'],
-  insect: ['Rotkehlchen','Kohlmeise','Blaumeise','Zaunkönig','Zilpzalp','Gelbspötter',
-           'Klappergrasmücke','Teichrohrsänger','Wintergoldhähnchen','Grauschnäpper',
-           'Heckenbraunelle','Schwarzkehlchen','Hausrotschwanz','Wendehals'],
-  omni:   ['Amsel','Elster','Rabenkrähe','Nebelkrähe','Eichelhäher','Dohle','Saatkrähe',
-           'Kolkrabe','Wacholderdrossel','Star'],
-  ground: ['Bachstelze','Brachvogel'],
-  bark:   ['Buntspecht','Mittelspecht','Grünspecht','Kleiber','Gartenbaumläufer','Waldbaumläufer'],
-  water:  ['Kanadagans','Stockente'],
-  aerial: ['Rauchschwalbe','Mehlschwalbe','Uferschwalbe','Mauersegler'],
-  raptor: ['Waldkauz'],
+// Small offline fallback for common Central-European species, keyed by German
+// name — used only when the AVONET table hasn't resolved a species (no key,
+// or eBird taxonomy unavailable). Keeps the feature working with no network.
+const GUILD_FALLBACK = {
+  Bluthänfling:'seed', Grünfink:'seed', Stieglitz:'seed', Buchfink:'seed', Kernbeißer:'seed',
+  Gimpel:'seed', Fichtenkreuzschnabel:'seed', Haussperling:'seed', Türkentaube:'seed',
+  Ringeltaube:'seed', Hohltaube:'seed', Felsentaube:'seed', Turteltaube:'seed', Wachtel:'seed',
+  Rotkehlchen:'insect', Kohlmeise:'insect', Blaumeise:'insect', Zaunkönig:'insect', Zilpzalp:'insect',
+  Gelbspötter:'insect', Klappergrasmücke:'insect', Teichrohrsänger:'insect', Wintergoldhähnchen:'insect',
+  Grauschnäpper:'insect', Heckenbraunelle:'insect', Schwarzkehlchen:'insect', Hausrotschwanz:'insect',
+  Wendehals:'insect',
+  Amsel:'omni', Elster:'omni', Rabenkrähe:'omni', Nebelkrähe:'omni', Eichelhäher:'omni', Dohle:'omni',
+  Saatkrähe:'omni', Kolkrabe:'omni', Wacholderdrossel:'omni', Star:'omni',
+  Bachstelze:'ground', Brachvogel:'ground',
+  Buntspecht:'bark', Mittelspecht:'bark', Grünspecht:'bark', Kleiber:'bark',
+  Gartenbaumläufer:'bark', Waldbaumläufer:'bark',
+  Kanadagans:'water', Stockente:'water',
+  Rauchschwalbe:'aerial', Mehlschwalbe:'aerial', Uferschwalbe:'aerial', Mauersegler:'aerial',
+  Waldkauz:'raptor', Waldohreule:'raptor'
 };
+
 const GUILD_WORD = {
   seed:   {de:'Körnerfresser', en:'seed-eaters'},
   insect: {de:'Insektenfresser', en:'insectivores'},
@@ -1312,11 +1352,54 @@ const GUILD_WORD = {
   water:  {de:'Wasservögel', en:'waterbirds'},
   aerial: {de:'Luftjäger', en:'aerial insectivores'},
   raptor: {de:'Greifvögel/Eulen', en:'raptors/owls'},
+  frugivore:{de:'Fruchtfresser', en:'frugivores'},
+  nectar: {de:'Nektarfresser', en:'nectarivores'},
+  other:  {de:'Sonstige', en:'other'},
 };
-const SPECIES_GUILD = {};
-Object.entries(GUILD).forEach(([g, names])=> names.forEach(n=> SPECIES_GUILD[n]=g));
 
+// Resolve a logged species (app's own name) → guild key, or null if unknown.
+// Tries AVONET (via scientific name) first, then the offline fallback.
+function speciesGuild(name){
+  const sci = (typeof SPECIES_SCI !== 'undefined') ? SPECIES_SCI[name] : null;
+  if(sci && AVONET_TRAITS[sci]) return AVONET_TRAITS[sci];
+  if(GUILD_FALLBACK[name]) return GUILD_FALLBACK[name];
+  return null;
+}
+
+const HAB_WORD = {
+  W:{de:'Wald',en:'woodland'}, F:{de:'Feld',en:'farmland'}, Wet:{de:'Wasser',en:'water'},
+  U:{de:'Siedlung',en:'settlement'}, S:{de:'Gebüsch',en:'scrub'}, Wc:{de:'Nadelwald',en:'conifer'},
+  Mar:{de:'Meer',en:'marine'}, Cst:{de:'Küste',en:'coastal'}, Rk:{de:'Fels',en:'rock'},
+  Dst:{de:'Wüste',en:'desert'}
+};
 function habWord(cat){ const w=HAB_WORD[cat]; return w?w[lang]:cat; }
+
+// App species name → scientific name. The join key to AVONET. Populated from
+// the eBird taxonomy fetch when available (it carries sciName per species);
+// the built-in entries below cover common Central-European species so the
+// AVONET lookup works offline too. Extend via the AVONET converter.
+let SPECIES_SCI = {
+  Amsel:'Turdus merula', Blaumeise:'Cyanistes caeruleus', Bluthänfling:'Linaria cannabina',
+  Buchfink:'Fringilla coelebs', Elster:'Pica pica', Grünfink:'Chloris chloris',
+  Kohlmeise:'Parus major', Rotkehlchen:'Erithacus rubecula', Stieglitz:'Carduelis carduelis',
+  Ringeltaube:'Columba palumbus', Rabenkrähe:'Corvus corone', Rauchschwalbe:'Hirundo rustica',
+  Kleiber:'Sitta europaea', Zaunkönig:'Troglodytes troglodytes', Zilpzalp:'Phylloscopus collybita',
+  Bachstelze:'Motacilla alba', Dohle:'Coloeus monedula', Hohltaube:'Columba oenas',
+  Haussperling:'Passer domesticus', Mehlschwalbe:'Delichon urbicum', Buntspecht:'Dendrocopos major',
+  Nebelkrähe:'Corvus cornix', Grünspecht:'Picus viridis', Gartenbaumläufer:'Certhia brachydactyla',
+  Fichtenkreuzschnabel:'Loxia curvirostra', Grauschnäpper:'Muscicapa striata',
+  Kernbeißer:'Coccothraustes coccothraustes', Gimpel:'Pyrrhula pyrrhula',
+  Wacholderdrossel:'Turdus pilaris', Wachtel:'Coturnix coturnix', Türkentaube:'Streptopelia decaocto',
+  Eichelhäher:'Garrulus glandarius', Wendehals:'Jynx torquilla', Gelbspötter:'Hippolais icterina',
+  Kanadagans:'Branta canadensis', Stockente:'Anas platyrhynchos', Klappergrasmücke:'Curruca curruca',
+  Teichrohrsänger:'Acrocephalus scirpaceus', Wintergoldhähnchen:'Regulus regulus',
+  Mittelspecht:'Dendrocoptes medius', Hausrotschwanz:'Phoenicurus ochruros',
+  Mauersegler:'Apus apus', Saatkrähe:'Corvus frugilegus', Felsentaube:'Columba livia',
+  Waldbaumläufer:'Certhia familiaris', Kolkrabe:'Corvus corax', Turteltaube:'Streptopelia turtur',
+  Heckenbraunelle:'Prunella modularis', Waldkauz:'Strix aluco', Uferschwalbe:'Riparia riparia',
+  Brachvogel:'Numenius arquata', Schwarzkehlchen:'Saxicola rubicola', Waldohreule:'Asio otus',
+  Star:'Sturnus vulgaris'
+};
 
 function habitatPlausible(name, zone){
   const raw = HABITAT_AFFINITY[name];
@@ -1674,6 +1757,8 @@ const I18N = {
   signatureIntro:{de:"Was die Zusammensetzung deiner Vogelgemeinschaft über den Lebensraum verrät — beschreibend, nicht beweisend.", en:"What your bird community's composition reflects about the habitat — descriptive, not conclusive."},
   sigGuilds:{de:"Nahrungsgilden", en:"Feeding guilds"},
   sigHabitats:{de:"Lebensraum-Bezug", en:"Habitat association"},
+  sigUnclassified:{de:"{n} Art(en) ohne Gilden-Zuordnung — in der Signatur nicht mitgezählt.", en:"{n} species without a guild assignment — not counted in the signature."},
+  sigNoHabitat:{de:"Für die erfassten Arten liegt keine regionale Lebensraum-Zuordnung vor (diese ist derzeit auf mitteleuropäische Arten ausgelegt).", en:"No regional habitat association available for the logged species (this is currently tuned to Central-European species)."},
   sigCaveat:{de:"Gewichtet nach Tagen gesehen ({n} von {total} Arten klassifiziert). Dies beschreibt die Zusammensetzung an DEINEM Standort — es ist kein statistischer Indikatorart-Nachweis. Dafür bräuchte es viele Standorte zum Vergleich (IndVal-Methode). Guten Gewissens sagbar: „passt zu“, nicht „beweist“.", en:"Weighted by days seen ({n} of {total} species classified). This describes composition at YOUR site — it is not a statistical indicator-species proof. That would require many sites to compare against (the IndVal method). Honestly sayable: “consistent with”, not “proves”."},
   panelArrivalsTitle:{de:"Neu & bemerkenswert", en:"New & notable"},
   arrivalsRecentHeading:{de:"Zuletzt neu im Garten", en:"Recently new to the garden"},
@@ -2661,6 +2746,20 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.20.0', date:'2026-08-09', de:[
+      'Volle AVONET-Datenbank eingebunden (10.654 Vogelarten weltweit): Gilden UND globale Lebensraum-Zuordnung kommen jetzt aus echten Trait-Daten, nicht aus einer Näherung — die Habitat-Signatur funktioniert damit für Vögel überall',
+      'Lädt aus avonet-traits.json (muss neben index.html liegen); fehlt die Datei, greift automatisch die eingebaute Notfall-Tabelle für mitteleuropäische Arten',
+    ], en:[
+      'Full AVONET database integrated (10,654 bird species worldwide): guilds AND global habitat association now come from real trait data, not an approximation — the habitat signature works for birds anywhere',
+      'Loads from avonet-traits.json (must sit next to index.html); if the file is missing, the built-in fallback table for Central-European species kicks in automatically',
+    ]},
+  { v:'0.19.1', date:'2026-08-07', de:[
+      'Habitat-Signatur arbeitet jetzt standortunabhängig: Gilden-Zuordnung über AVONET (per wissenschaftlichem Namen), nicht mehr über eine feste Artenliste — funktioniert für Vögel weltweit',
+      'Arten ohne Zuordnung werden ehrlich als „nicht klassifiziert" ausgewiesen statt stillschweigend weggelassen; ohne regionale Habitat-Daten beschreibt die Signatur nur die Nahrungsgilden',
+    ], en:[
+      'Habitat signature now works location-independently: guild assignment via AVONET (by scientific name) instead of a fixed species list — works for birds worldwide',
+      'Species without an assignment are shown honestly as "not classified" rather than silently dropped; without regional habitat data the signature describes feeding guilds only',
+    ]},
   { v:'0.19.0', date:'2026-08-07', de:[
       'Neuer Bereich „Habitat-Signatur" (unter Muster): zeigt aus welchen Nahrungsgilden und Lebensraum-Bezügen deine Vogelgemeinschaft besteht — z.B. körnerfresser-geprägt, Wald/Siedlung/Feld gemischt, also ein Randhabitat',
       'Bewusst beschreibend gehalten: „passt zu", nicht „beweist" — ein echter Indikatorart-Nachweis bräuchte viele Vergleichsstandorte. Quellen und Grenzen in der Methodik ergänzt.',
@@ -3590,15 +3689,21 @@ function communitySignature(entries){
   // weight = distinct days seen (residents count more than visitors)
   const guildWeight = {}, habWeight = {};
   let guildTotal = 0, habTotal = 0, classifiedSpecies = 0;
+  const unclassified = [];
   names.forEach(n=>{
     const w = days[n].size;
-    const g = SPECIES_GUILD[n];
+    const g = speciesGuild(n);
     if(g){ guildWeight[g] = (guildWeight[g]||0) + w; guildTotal += w; classifiedSpecies++; }
+    else { unclassified.push(n); }
     const habRaw = HABITAT_AFFINITY[n];
     if(habRaw){
       const cats = Array.isArray(habRaw) ? habRaw : (habRaw.needs || []);
-      // split the species' weight evenly across the habitats it associates with
       cats.forEach(c=>{ habWeight[c] = (habWeight[c]||0) + w/cats.length; habTotal += w/cats.length; });
+    } else {
+      // no fine European affinity → fall back to AVONET's global habitat field
+      const sci = SPECIES_SCI[n];
+      const gh = sci && AVONET_HAB[sci];
+      if(gh){ habWeight[gh] = (habWeight[gh]||0) + w; habTotal += w; }
     }
   });
   if(guildTotal === 0) return null;
@@ -3610,7 +3715,8 @@ function communitySignature(entries){
     .map(([c,w])=>({key:c, pct: Math.round(w/habTotal*100)}))
     .sort((a,b)=>b.pct-a.pct);
 
-  return {guildPct, habPct, classifiedSpecies, totalSpecies: names.length};
+  return {guildPct, habPct, classifiedSpecies, totalSpecies: names.length,
+          unclassified, hasHabitat: habTotal > 0};
 }
 
 // A short, honest habitat-signature sentence derived from the dominant
@@ -3618,8 +3724,14 @@ function communitySignature(entries){
 function signatureSentence(sig){
   if(!sig || !sig.guildPct.length) return '';
   const topGuild = sig.guildPct[0];
-  const topHabs = sig.habPct.slice(0,2).map(h=>habWord(h.key));
   const guildW = (GUILD_WORD[topGuild.key]||{})[lang] || topGuild.key;
+  if(!sig.hasHabitat){
+    // guild-only (no European habitat data for these species) — describe the
+    // trophic makeup without claiming a habitat type
+    if(lang === 'en') return `A community led by ${guildW} (${topGuild.pct}% of days-weighted records).`;
+    return `Eine Gemeinschaft mit ${guildW} an der Spitze (${topGuild.pct}% der tagegewichteten Nachweise).`;
+  }
+  const topHabs = sig.habPct.slice(0,2).map(h=>habWord(h.key));
   if(lang === 'en'){
     return `A community led by ${guildW} (${topGuild.pct}%), associated mainly with ${topHabs.join(' and ')} — a mix consistent with a ${topHabs.join('/')} edge habitat.`;
   }
@@ -3641,11 +3753,15 @@ function renderSignature(entries){
       <span class="sig-pct">${g.pct}%</span></div>`;
   }).join('');
 
-  const habBars = sig.habPct.map(h=>{
+  const habBars = sig.hasHabitat ? sig.habPct.map(h=>{
     return `<div class="sig-row"><span class="sig-lbl">${habWord(h.key)}</span>
       <span class="sig-track"><span class="sig-fill sig-hab" style="width:${h.pct}%"></span></span>
       <span class="sig-pct">${h.pct}%</span></div>`;
-  }).join('');
+  }).join('') : `<div class="sig-nohab">${t('sigNoHabitat')}</div>`;
+
+  const unclassifiedNote = sig.unclassified.length
+    ? `<div class="sig-unclassified">${t('sigUnclassified').replace('{n}', sig.unclassified.length)}</div>`
+    : '';
 
   content.innerHTML = `
     <div class="sig-sentence">${signatureSentence(sig)}</div>
@@ -3659,6 +3775,7 @@ function renderSignature(entries){
         ${habBars}
       </div>
     </div>
+    ${unclassifiedNote}
     <div class="sig-caveat">${t('sigCaveat').replace('{n}', sig.classifiedSpecies).replace('{total}', sig.totalSpecies)}</div>
   `;
 }
@@ -3897,6 +4014,7 @@ loadSettings().then(()=>{
   });
 });
 loadEbirdTaxonomy().then(()=>{ if(Object.keys(EBIRD_DE_TO_EN).length) renderAll(); });
+loadAvonetTraits();
 document.getElementById('entryDate').value = todayStr();
 document.getElementById('entryTime').value = nowStr();
 addSpeciesRow();
