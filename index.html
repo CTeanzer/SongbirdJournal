@@ -1041,7 +1041,7 @@
       <div class="modal-sub" id="modalSci"></div>
       <div class="modal-stats">
         <div><b id="modalDays">–</b><span data-i18n="colDaysSeen">Tage gesehen</span></div>
-        <div><b id="modalTotal">–</b><span data-i18n="colTotal">Gesamt Individuen</span></div>
+        <div><b id="modalTotal">–</b><span data-i18n="colTotal">Akust. Erkennungen</span></div>
         <div><b id="modalConf">–</b><span data-i18n="colConfidence">Ø Konfidenz</span></div>
         <div><b id="modalLast">–</b><span data-i18n="colLastSeen">Zuletzt</span></div>
       </div>
@@ -1060,12 +1060,56 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.21.0';
+const APP_VERSION = '0.21.1';
 const APP_VERSION_DATE = '2026-08-09';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
 const SPECIES_EN = {
+  "Baumpieper": "Tree Pipit",
+  "Singdrossel": "Song Thrush",
+  "Wiesenpieper": "Meadow Pipit",
+  "Misteldrossel": "Mistle Thrush",
+  "Rotdrossel": "Redwing",
+  "Feldlerche": "Skylark",
+  "Goldammer": "Yellowhammer",
+  "Rohrammer": "Reed Bunting",
+  "Sumpfmeise": "Marsh Tit",
+  "Weidenmeise": "Willow Tit",
+  "Haubenmeise": "Crested Tit",
+  "Tannenmeise": "Coal Tit",
+  "Schwanzmeise": "Long-tailed Tit",
+  "Waldlaubsänger": "Wood Warbler",
+  "Fitis": "Willow Warbler",
+  "Gartengrasmücke": "Garden Warbler",
+  "Mönchsgrasmücke": "Blackcap",
+  "Dorngrasmücke": "Common Whitethroat",
+  "Sumpfrohrsänger": "Marsh Warbler",
+  "Feldsperling": "Eurasian Tree Sparrow",
+  "Girlitz": "European Serin",
+  "Erlenzeisig": "Eurasian Siskin",
+  "Birkenzeisig": "Common Redpoll",
+  "Trauerschnäpper": "European Pied Flycatcher",
+  "Braunkehlchen": "Whinchat",
+  "Steinschmätzer": "Northern Wheatear",
+  "Gartenrotschwanz": "Common Redstart",
+  "Nachtigall": "Common Nightingale",
+  "Sommergoldhähnchen": "Common Firecrest",
+  "Kuckuck": "Common Cuckoo",
+  "Neuntöter": "Red-backed Shrike",
+  "Pirol": "Eurasian Golden Oriole",
+  "Kleinspecht": "Lesser Spotted Woodpecker",
+  "Schwarzspecht": "Black Woodpecker",
+  "Wanderfalke": "Peregrine Falcon",
+  "Turmfalke": "Common Kestrel",
+  "Mäusebussard": "Common Buzzard",
+  "Sperber": "Eurasian Sparrowhawk",
+  "Habicht": "Northern Goshawk",
+  "Rotmilan": "Red Kite",
+  "Graureiher": "Grey Heron",
+  "Weißstorch": "White Stork",
+  "Kiebitz": "Northern Lapwing",
+  "Waldschnepfe": "Eurasian Woodcock",
   "Amsel": "Blackbird",
   "Blaumeise": "Blue Tit",
   "Bluthänfling": "Linnet",
@@ -1859,7 +1903,7 @@ const I18N = {
   confidenceTitle:  {de:"Konfidenz %", en:"Confidence %"},
   colSpecies:       {de:"Art", en:"Species"},
   colDaysSeen:      {de:"Tage gesehen", en:"Days seen"},
-  colTotal:         {de:"Gesamt Individuen", en:"Total individuals"},
+  colTotal:         {de:"Akust. Erkennungen", en:"Acoustic detections"},
   colConfidence:    {de:"Ø Konfidenz", en:"Avg. confidence"},
   colLastSeen:      {de:"Zuletzt", en:"Last seen"},
   emptyOverview:    {de:"Noch keine Aufnahmen geloggt. Trag deine erste Session oben ein.", en:"No recordings logged yet. Add your first session above."},
@@ -2809,6 +2853,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.21.1', date:'2026-08-09', de:[
+      'Spalte „Gesamt Individuen" in „Akust. Erkennungen" umbenannt — sie zählt BirdNET-Erkennungen, keine Vögel',
+      'Englische Namen für viele weitere Arten ergänzt (u.a. Baumpieper, Singdrossel) — kein Deutsch/Englisch-Mix mehr in der englischen Ansicht',
+    ], en:[
+      'Renamed the "Total individuals" column to "Acoustic detections" — it counts BirdNET detections, not birds',
+      'Added English names for many more species (incl. Tree Pipit, Song Thrush) — no more German/English mix in the English view',
+    ]},
   { v:'0.21.0', date:'2026-08-09', de:[
       'Beobachtungsmodell überarbeitet: „count" heißt jetzt ehrlich „akustische Erkennungen" (BirdNET zählt Rufe, nicht Vögel); zusätzlich min/mittel/max-Konfidenz und Quelle je Nachweis',
       'Neues, optionales Feld „Individuen" — nur ausfüllbar, wenn du Vögel visuell gezählt hast; bleibt sonst leer und wird nie aus Erkennungen abgeleitet',
