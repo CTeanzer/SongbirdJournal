@@ -466,6 +466,26 @@
   .sig-nohab{font-size:12px; color:var(--text-dim); line-height:1.5;}
   .sig-caveat{font-size:12px; color:var(--text-dim); margin-top:16px; line-height:1.5; padding-top:12px; border-top:1px solid var(--border);}
   .panel-intro{font-size:13px; color:var(--text-dim); margin-bottom:16px; line-height:1.5;}
+  /* Completeness */
+  .cmp-headline{display:flex; align-items:center; gap:16px; margin-bottom:14px; flex-wrap:wrap;}
+  .cmp-big{font-size:34px; font-weight:700; color:var(--status-safe); line-height:1;}
+  .cmp-big-sub{display:block; font-size:11px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; margin-top:3px;}
+  .cmp-arrow{font-size:22px; color:var(--text-dim);}
+  .cmp-est-num{font-size:34px; font-weight:700; color:var(--heading); line-height:1;}
+  .cmp-est-sub{display:block; font-size:11px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; margin-top:3px;}
+  .cmp-barwrap{margin-bottom:18px;}
+  .cmp-bar{height:10px; background:var(--bg-elev); border-radius:6px; overflow:hidden;}
+  .cmp-fill{height:100%; background:var(--status-safe); border-radius:6px;}
+  .cmp-barlabel{font-size:12px; color:var(--text-dim); margin-top:6px;}
+  .cmp-chart{margin:8px 0 4px;}
+  .cmp-line{fill:none; stroke:var(--accent); stroke-width:2;}
+  .cmp-dot{fill:var(--accent);}
+  .cmp-grid{stroke:var(--border); stroke-width:1; stroke-dasharray:2 3;}
+  .cmp-axis{fill:var(--text-dim); font-size:10px;}
+  .cmp-axistitle{fill:var(--text-dim); font-size:11px;}
+  .cmp-chao{stroke:var(--status-near); stroke-width:1.5; stroke-dasharray:5 3;}
+  .cmp-chao-lbl{fill:var(--status-near); font-size:10px; font-weight:600;}
+  .cmp-caveat{font-size:12px; color:var(--text-dim); margin-top:14px; line-height:1.5; padding-top:12px; border-top:1px solid var(--border);}
   #methodologyModalBody .src-note{font-size:12px; color:var(--text-dim); margin-top:2px;}
   #methodologyModalBody .method-limit{background:var(--bg-elev); border-left:3px solid var(--accent); padding:10px 12px; margin-top:16px; border-radius:0 6px 6px 0; font-size:13px;}
   #reportModalBody h3{font-size:20px; margin-bottom:2px;}
@@ -835,6 +855,20 @@
     </div>
   </div>
 
+  <div class="panel" data-home="patterns" id="completenessPanel" style="display:none;">
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('completenessBody')"
+              aria-expanded="true" aria-controls="completenessBody">
+        <span data-i18n="panelCompletenessTitle">Wie vollständig ist deine Artenliste?</span>
+        <span class="chevron" id="completenessBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="completenessBody">
+      <div class="panel-intro" data-i18n="completenessIntro">Wie viele Arten hast du wahrscheinlich schon erfasst — und wie viele fehlen vermutlich noch? Beruht nur auf Anwesenheit pro erfasstem Tag, nicht auf Erkennungszahlen.</div>
+      <div id="completenessContent"></div>
+    </div>
+  </div>
+
   <div class="panel" data-home="patterns" id="signaturePanel" style="display:none;">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('signatureBody')"
@@ -1068,8 +1102,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.22.0';
-const APP_VERSION_DATE = '2026-08-09';
+const APP_VERSION = '0.23.0';
+const APP_VERSION_DATE = '2026-08-11';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -1859,6 +1893,15 @@ const I18N = {
   tabPatterns:{de:"Muster", en:"Patterns"},
   tabMap:{de:"Karte & Zonen", en:"Map & zones"},
   panelSignatureTitle:{de:"Habitat-Signatur", en:"Habitat signature"},
+  panelCompletenessTitle:{de:"Wie vollständig ist deine Artenliste?", en:"How complete is your species list?"},
+  completenessIntro:{de:"Wie viele Arten hast du wahrscheinlich schon erfasst — und wie viele fehlen vermutlich noch? Beruht nur auf Anwesenheit pro erfasstem Tag, nicht auf Erkennungszahlen.", en:"How many species have you likely recorded — and how many are probably still missing? Based only on presence per logged day, not on detection counts."},
+  cmpDetected:{de:"bisher erfasst", en:"detected so far"},
+  cmpEstimated:{de:"wahrscheinlich vorhanden (Untergrenze)", en:"likely present (lower bound)"},
+  cmpAbout:{de:"Du hast damit grob etwa {pct}% der wahrscheinlich vorhandenen Arten erfasst — die Schätzung ist eine vorsichtige Untergrenze und ändert sich, je mehr du loggst.", en:"That puts you at roughly {pct}% of the species likely present — the estimate is a cautious lower bound and will shift as you log more."},
+  cmpChaoLine:{de:"geschätzte Untergrenze ≥ {n}", en:"estimated lower bound ≥ {n}"},
+  cmpXaxis:{de:"erfasste Tage", en:"logged days"},
+  cmpCurveAria:{de:"Artenzuwachs-Kurve über erfasste Tage", en:"Species accumulation curve over logged days"},
+  cmpCaveat:{de:"Methode: Stichproben-Rarefaction + Chao2, rein auf Anwesenheit/Abwesenheit pro erfasstem Tag. Die Kurve steigt noch → die Liste ist klar unvollständig. Die Zahl ist eine Untergrenze, kein exakter Wert, und bei wenigen Daten schwankt sie stark. Keine Aussage über Häufigkeit, Dichte oder Bestandsgrößen.", en:"Method: sample-based rarefaction + Chao2, purely on presence/absence per logged day. The curve is still rising → the list is clearly incomplete. The number is a lower bound, not an exact value, and it fluctuates a lot with little data. Says nothing about abundance, density, or population sizes."},
   signatureIntro:{de:"Was die Zusammensetzung deiner Vogelgemeinschaft über den Lebensraum verrät — beschreibend, nicht beweisend.", en:"What your bird community's composition reflects about the habitat — descriptive, not conclusive."},
   sigGuilds:{de:"Nahrungsgilden", en:"Feeding guilds"},
   sigHabitats:{de:"Lebensraum-Bezug", en:"Habitat association"},
@@ -2866,6 +2909,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.23.0', date:'2026-08-11', de:[
+      'Neuer Bereich „Wie vollständig ist deine Artenliste?" (unter Muster): Artenzuwachs-Kurve plus geschätzte Untergrenze der wahrscheinlich vorhandenen Arten (Chao2, inzidenzbasiert)',
+      'Bewusst vorsichtig: die Zahl ist ausdrücklich eine Untergrenze, die Kurve trägt die Aussage; keine Angaben zu Häufigkeit, Dichte oder Bestand',
+    ], en:[
+      'New "How complete is your species list?" section (under Patterns): species accumulation curve plus an estimated lower bound of species likely present (Chao2, incidence-based)',
+      'Deliberately cautious: the number is explicitly a lower bound and the curve carries the message; no claims about abundance, density or population size',
+    ]},
   { v:'0.22.0', date:'2026-08-09', de:[
       'Nachweis-Verlauf je Art: im Detail-Dialog zeigt ein kleiner Streifen, an welchen erfassten Tagen die Art nachgewiesen wurde (dunkler = mehr Erkennungen) — macht Muster wie „nur früh im Zeitraum" sichtbar',
       'Bewusst ehrlich: Achse sind nur erfasste Tage, keine Kalender-Linie — Aufnahmelücken werden nicht als Abwesenheit dargestellt, kein Trend suggeriert',
@@ -3084,6 +3134,9 @@ const METHODOLOGY_CONTENT = {
     <h4>Gefährdungsstatus</h4>
     <p>Rote-Liste-Kategorien stammen aus der <strong>Roten Liste der Brutvögel Deutschlands</strong>, 6. Fassung (Deutscher Rat für Vogelschutz / DDA, veröffentlicht Juni 2021). Nur ausgewählte, im Log tatsächlich aufgetauchte Arten sind hinterlegt — keine vollständige Liste aller ca. 259 deutschen Brutvogelarten.</p>
 
+    <h4>Vollständigkeit der Artenliste</h4>
+    <p>Der Bereich „Wie vollständig ist deine Artenliste?" schätzt, wie viele Arten an deinem Standort wahrscheinlich vorkommen, im Vergleich zu den bisher erfassten. Grundlage ist ausschließlich <strong>Anwesenheit/Abwesenheit pro erfasstem Tag</strong> (Inzidenz-Daten) — nie Erkennungszahlen. Die Artenzuwachs-Kurve (Stichproben-Rarefaction) zeigt, wie die Liste mit jedem Tag wächst; solange sie steigt, ist die Liste unvollständig. Die Schätzzahl ist <strong>Chao2</strong>, ausdrücklich als <strong>Untergrenze</strong> zu verstehen: mit wenigen Daten schwankt sie stark. Es werden <strong>keine</strong> Aussagen über Häufigkeit, Dichte oder Bestandsgrößen gemacht.</p>
+
     <h4>Habitat-Signatur</h4>
     <p>Der Bereich „Habitat-Signatur" fasst zusammen, aus welchen Nahrungsgilden (nach <strong>AVONET</strong>-Trophie-Kategorien) und Lebensraum-Bezügen deine Gemeinschaft besteht, gewichtet nach Tagen gesehen. Das ist <strong>rein beschreibend</strong>: Es sagt, womit die Zusammensetzung an diesem einen Standort vereinbar ist — nicht, was sie „beweist". Ein echter statistischer Indikatorart-Nachweis (IndVal, Dufrêne &amp; Legendre 1997) bräuchte viele Standorte zum Vergleich; mit einem Rekorder ist das grundsätzlich nicht möglich.</p>
 
@@ -3108,6 +3161,9 @@ const METHODOLOGY_CONTENT = {
 
     <h4>Conservation status</h4>
     <p>Red List categories come from the <strong>Rote Liste der Brutvögel Deutschlands</strong>, 6th edition (Deutscher Rat für Vogelschutz / DDA, published June 2021). Only species that have actually appeared in this log are covered — not the full list of roughly 259 German breeding bird species.</p>
+
+    <h4>Species-list completeness</h4>
+    <p>The "How complete is your species list?" section estimates how many species likely occur at your site versus how many you've recorded. It uses only <strong>presence/absence per logged day</strong> (incidence data) — never detection counts. The accumulation curve (sample-based rarefaction) shows how the list grows with each day; while it's still rising, the list is incomplete. The estimate is <strong>Chao2</strong>, to be read explicitly as a <strong>lower bound</strong>: with little data it fluctuates a lot. It makes <strong>no</strong> claims about abundance, density, or population size.</p>
 
     <h4>Habitat signature</h4>
     <p>The "Habitat signature" section summarises which feeding guilds (following <strong>AVONET</strong> trophic categories) and habitat associations your community is made of, weighted by days seen. This is <strong>purely descriptive</strong>: it states what the composition at this one site is consistent with — not what it "proves". A real statistical indicator-species test (IndVal, Dufrêne &amp; Legendre 1997) would require many sites to compare against; with a single recorder that is fundamentally not possible.</p>
@@ -4073,7 +4129,116 @@ function migrateEntryObservations(entry){
   return entry;
 }
 
-// ── Detection history (per species) ──────────────────────────────────────
+// ── Completeness & accumulation (incidence-based) ────────────────────────
+// Answers "how much of my patch have I sampled?" using ONLY presence/absence
+// per logged day — never detection counts (which reflect vocal activity, not
+// abundance). Two outputs:
+//   1) a sample-based rarefaction/accumulation curve (robust, assumption-free)
+//   2) Chao2, presented as a LOWER BOUND on true richness — never a hard
+//      point estimate, because with few duplicates (Q2) it is volatile.
+// Deliberately NOT computed/claimed: abundance, density, indicator status,
+// ecosystem "health". This is a completeness diagnostic, nothing more.
+function nCr(n, r){
+  if(r < 0 || r > n) return 0;
+  r = Math.min(r, n-r);
+  let num = 1;
+  for(let i=0;i<r;i++) num = num * (n-i) / (i+1);
+  return num;
+}
+function completenessStats(entries){
+  const bird = entries.filter(e=>(e.type||'bird')==='bird');
+  const dayMap = {};
+  bird.forEach(e=>{
+    if(!dayMap[e.date]) dayMap[e.date] = new Set();
+    (e.species||[]).forEach(s=> dayMap[e.date].add(s.species||s.name));
+  });
+  const days = Object.keys(dayMap);
+  const m = days.length;
+  if(m < 3) return null;   // too few sampling units to say anything honest
+
+  // incidence frequency: on how many days each species was detected
+  const incidence = {};
+  days.forEach(d=> dayMap[d].forEach(n=>{ incidence[n] = (incidence[n]||0)+1; }));
+  const freqs = Object.values(incidence);
+  const Sobs = freqs.length;
+  const Q1 = freqs.filter(f=>f===1).length;   // uniques
+  const Q2 = freqs.filter(f=>f===2).length;   // duplicates
+
+  // Chao2 (bias-corrected) — treated as a lower bound
+  let chao2;
+  if(Q2 > 0) chao2 = Sobs + ((m-1)/m) * (Q1*(Q1-1)) / (2*(Q2+1));
+  else       chao2 = Sobs + ((m-1)/m) * (Q1*(Q1-1)) / 2;
+  chao2 = Math.round(chao2*10)/10;
+  const completeness = Sobs/chao2;   // fraction (Sobs of estimated lower-bound total)
+
+  // sample-based rarefaction: expected species in t randomly chosen days
+  const expSpecies = (t)=>{
+    const denom = nCr(m, t);
+    let tot = 0;
+    for(const f of freqs){
+      if(m-f >= t) tot += 1 - nCr(m-f, t)/denom;
+      else tot += 1;
+    }
+    return tot;
+  };
+  const curve = [];
+  for(let t=1; t<=m; t++) curve.push({t, s: expSpecies(t)});
+
+  return {m, Sobs, Q1, Q2, chao2, completeness, curve};
+}
+
+function renderCompleteness(entries){
+  const panel = document.getElementById('completenessPanel');
+  if(!panel) return;
+  const content = document.getElementById('completenessContent');
+  const st = completenessStats(entries);
+  if(!st){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  const pct = Math.round(st.completeness*100);
+  const lowerBound = Math.ceil(st.chao2);
+
+  // headline: completeness as a hedged range, Chao2 as lower bound
+  const headline = `
+    <div class="cmp-headline">
+      <div class="cmp-big">${st.Sobs} <span class="cmp-big-sub">${t('cmpDetected')}</span></div>
+      <div class="cmp-arrow">→</div>
+      <div class="cmp-est"><span class="cmp-est-num">≥ ${lowerBound}</span><span class="cmp-est-sub">${t('cmpEstimated')}</span></div>
+    </div>
+    <div class="cmp-barwrap">
+      <div class="cmp-bar"><div class="cmp-fill" style="width:${pct}%"></div></div>
+      <div class="cmp-barlabel">${t('cmpAbout').replace('{pct}', pct)}</div>
+    </div>`;
+
+  // accumulation curve as inline SVG
+  const W=460, H=180, pad={l:34,r:12,t:12,b:28};
+  const maxS = Math.max(...st.curve.map(p=>p.s), st.chao2);
+  const xFor = t => pad.l + (t-1)/(st.m-1) * (W-pad.l-pad.r);
+  const yFor = s => H-pad.b - (s/maxS) * (H-pad.t-pad.b);
+  const pts = st.curve.map(p=>`${xFor(p.t).toFixed(1)},${yFor(p.s).toFixed(1)}`).join(' ');
+  // chao2 lower-bound reference line
+  const yChao = yFor(st.chao2);
+  // gridlines / ticks
+  const yticks = [0, Math.round(maxS/2), Math.round(maxS)];
+  const gridY = yticks.map(v=>`<line x1="${pad.l}" y1="${yFor(v)}" x2="${W-pad.r}" y2="${yFor(v)}" class="cmp-grid"/><text x="${pad.l-5}" y="${yFor(v)+3}" class="cmp-axis" text-anchor="end">${v}</text>`).join('');
+  const xticks = [1, Math.ceil(st.m/2), st.m];
+  const gridX = xticks.map(v=>`<text x="${xFor(v)}" y="${H-pad.b+16}" class="cmp-axis" text-anchor="middle">${v}</text>`).join('');
+
+  const svg = `
+    <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;" role="img" aria-label="${t('cmpCurveAria')}">
+      ${gridY}${gridX}
+      <line x1="${pad.l}" y1="${yChao.toFixed(1)}" x2="${W-pad.r}" y2="${yChao.toFixed(1)}" class="cmp-chao"/>
+      <text x="${W-pad.r}" y="${(yChao-5).toFixed(1)}" class="cmp-chao-lbl" text-anchor="end">${t('cmpChaoLine').replace('{n}', lowerBound)}</text>
+      <polyline points="${pts}" class="cmp-line"/>
+      ${st.curve.map(p=>`<circle cx="${xFor(p.t).toFixed(1)}" cy="${yFor(p.s).toFixed(1)}" r="2.5" class="cmp-dot"/>`).join('')}
+      <text x="${pad.l+(W-pad.l-pad.r)/2}" y="${H-4}" class="cmp-axistitle" text-anchor="middle">${t('cmpXaxis')}</text>
+    </svg>`;
+
+  const caveat = `<div class="cmp-caveat">${t('cmpCaveat')}</div>`;
+
+  content.innerHTML = headline + `<div class="cmp-chart">${svg}</div>` + caveat;
+}
+// ── Completeness (end) ───────────────────────────────────────────────────
 // Honest temporal view: for one species, which of the days you ACTUALLY
 // logged did it get detected, and how many detections that day. The axis is
 // logged-days, not calendar-days — so a gap where you didn't record never
@@ -4305,6 +4470,7 @@ async function renderAll(){
   try{ renderClock(entries); }catch(err){ console.error('renderClock failed', err); }
   try{ renderArrivals(entries); }catch(err){ console.error('renderArrivals failed', err); }
   try{ renderSignature(entries); }catch(err){ console.error('renderSignature failed', err); }
+  try{ renderCompleteness(entries); }catch(err){ console.error('renderCompleteness failed', err); }
   try{ updateNewDot(entries); }catch(err){ console.error('updateNewDot failed', err); }
 
   // One table, filtered — birds and night-camera sightings were two identical
