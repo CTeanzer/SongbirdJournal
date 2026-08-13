@@ -1102,8 +1102,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.23.0';
-const APP_VERSION_DATE = '2026-08-11';
+const APP_VERSION = '0.23.1';
+const APP_VERSION_DATE = '2026-08-13';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -2275,107 +2275,65 @@ const fileSync = {
   },
 };
 
-let jsonpCounter = 0;
+// Species thumbnail lookup. Previously used JSONP (a <script src=...callback=...>
+// injected into <head>) — the older workaround for cross-origin requests before
+// CORS. Rewritten to plain fetch() with Wikipedia's documented anonymous-CORS
+// parameter (origin=*): https://www.mediawiki.org/wiki/API:Cross-site_requests.
+// Two real problems this fixes, not just style:
+//   1. Missing &redirects=1 meant any species whose logged name didn't match
+//      Wikipedia's exact current article title (renamed/alternate-spelling
+//      articles are common) silently found nothing and fell back to the 🐦
+//      placeholder — even though a wiki article existed.
+//   2. A dynamically-injected cross-origin <script> tag is exactly the shape
+//      that privacy-hardened browsers (Safari's tracking prevention, Brave,
+//      many ad/tracker blockers) are built to silently block by default,
+//      since it structurally resembles third-party tracking — regardless of
+//      the destination being Wikipedia. A real fetch() with CORS doesn't
+//      trigger that heuristic.
+async function wikiApiFetch(name, extraParams){
+  const key = name.trim().toLowerCase();
+  const url = 'https://de.wikipedia.org/w/api.php?action=query&titles=' +
+    encodeURIComponent(wikiTitle(name.trim())) +
+    '&redirects=1&format=json&origin=*' + extraParams;
+  const controller = new AbortController();
+  const timeout = setTimeout(()=>controller.abort(), 5000);
+  try{
+    const res = await fetch(url, {signal: controller.signal});
+    clearTimeout(timeout);
+    if(!res.ok) return null;
+    const data = await res.json();
+    const pages = data.query && data.query.pages;
+    if(!pages) return null;
+    const page = Object.values(pages)[0];
+    return page || null;
+  }catch(e){
+    clearTimeout(timeout);
+    return null;   // network error, abort, or bad JSON — same graceful fallback as before
+  }
+}
+
 async function getSpeciesImage(name){
   const key = name.trim().toLowerCase();
   if(!key) return null;
   if(key in speciesImageCache) return speciesImageCache[key];
-
-  return new Promise((resolve)=>{
-    const cbName = 'birdImgCb' + (jsonpCounter++);
-    const cleanup = ()=>{
-      delete window[cbName];
-      const s = document.getElementById(cbName);
-      if(s) s.remove();
-    };
-    const timeout = setTimeout(()=>{
-      speciesImageCache[key] = null;
-      cleanup();
-      resolve(null);
-    }, 5000);
-
-    window[cbName] = function(data){
-      clearTimeout(timeout);
-      let url = null;
-      try{
-        const pages = data.query && data.query.pages;
-        if(pages){
-          const page = Object.values(pages)[0];
-          if(page && page.thumbnail && page.thumbnail.source) url = page.thumbnail.source;
-        }
-      }catch(e){ /* leave url null */ }
-      speciesImageCache[key] = url;
-      cleanup();
-      resolve(url);
-    };
-
-    const script = document.createElement('script');
-    script.id = cbName;
-    script.src = 'https://de.wikipedia.org/w/api.php?action=query&titles=' +
-      encodeURIComponent(wikiTitle(name.trim())) +
-      '&prop=pageimages&format=json&pithumbsize=120&callback=' + cbName;
-    script.onerror = ()=>{
-      clearTimeout(timeout);
-      speciesImageCache[key] = null;
-      cleanup();
-      resolve(null);
-    };
-    document.head.appendChild(script);
-  });
+  const page = await wikiApiFetch(name, '&prop=pageimages&pithumbsize=120');
+  const url = (page && page.thumbnail && page.thumbnail.source) || null;
+  speciesImageCache[key] = url;
+  return url;
 }
 
 async function getSpeciesInfo(name){
   const key = name.trim().toLowerCase();
   if(!key) return null;
   if(key in speciesInfoCache) return speciesInfoCache[key];
-
-  return new Promise((resolve)=>{
-    const cbName = 'birdInfoCb' + (jsonpCounter++);
-    const cleanup = ()=>{
-      delete window[cbName];
-      const s = document.getElementById(cbName);
-      if(s) s.remove();
-    };
-    const timeout = setTimeout(()=>{
-      speciesInfoCache[key] = null;
-      cleanup();
-      resolve(null);
-    }, 5000);
-
-    window[cbName] = function(data){
-      clearTimeout(timeout);
-      let info = null;
-      try{
-        const pages = data.query && data.query.pages;
-        if(pages){
-          const page = Object.values(pages)[0];
-          if(page){
-            info = {
-              image: (page.thumbnail && page.thumbnail.source) || null,
-              extract: page.extract || null,
-              url: 'https://de.wikipedia.org/wiki/' + encodeURIComponent(wikiTitle(name.trim()))
-            };
-          }
-        }
-      }catch(e){ /* leave info null */ }
-      speciesInfoCache[key] = info;
-      cleanup();
-      resolve(info);
-    };
-
-    const script = document.createElement('script');
-    script.id = cbName;
-    script.src = 'https://de.wikipedia.org/w/api.php?action=query&titles=' +
-      encodeURIComponent(wikiTitle(name.trim())) +
-      '&prop=extracts|pageimages&exintro&explaintext&exchars=400&pithumbsize=400&format=json&callback=' + cbName;
-    script.onerror = ()=>{
-      clearTimeout(timeout);
-      speciesInfoCache[key] = null;
-      cleanup();
-      resolve(null);
-    };
-    document.head.appendChild(script);
-  });
+  const page = await wikiApiFetch(name, '&prop=extracts|pageimages&exintro&explaintext&exchars=400&pithumbsize=400');
+  const info = page ? {
+    image: (page.thumbnail && page.thumbnail.source) || null,
+    extract: page.extract || null,
+    url: 'https://de.wikipedia.org/wiki/' + encodeURIComponent(wikiTitle(name.trim()))
+  } : null;
+  speciesInfoCache[key] = info;
+  return info;
 }
 
 async function openSpeciesModal(name, stats){
@@ -2909,6 +2867,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.23.1', date:'2026-08-13', de:[
+      'Vogelbilder (Wikipedia) auf modernen Abruf umgestellt statt der alten JSONP-Skript-Technik — wurde von privatsphäre-strengen Browsern (Safari, Brave u.a.) teils stillschweigend blockiert',
+      'Titel-Weiterleitungen werden jetzt berücksichtigt — Arten mit abweichendem Wikipedia-Artikelnamen zeigen jetzt ihr Bild statt des Platzhalter-Symbols',
+    ], en:[
+      'Bird images (Wikipedia) now use a modern fetch instead of the old JSONP script technique — that was sometimes silently blocked by privacy-focused browsers (Safari, Brave, etc.)',
+      'Article-title redirects are now followed — species whose Wikipedia article has a different exact name now show their photo instead of the placeholder icon',
+    ]},
   { v:'0.23.0', date:'2026-08-11', de:[
       'Neuer Bereich „Wie vollständig ist deine Artenliste?" (unter Muster): Artenzuwachs-Kurve plus geschätzte Untergrenze der wahrscheinlich vorhandenen Arten (Chao2, inzidenzbasiert)',
       'Bewusst vorsichtig: die Zahl ist ausdrücklich eine Untergrenze, die Kurve trägt die Aussage; keine Angaben zu Häufigkeit, Dichte oder Bestand',
