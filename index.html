@@ -466,6 +466,35 @@
   .sig-nohab{font-size:12px; color:var(--text-dim); line-height:1.5;}
   .sig-caveat{font-size:12px; color:var(--text-dim); margin-top:16px; line-height:1.5; padding-top:12px; border-top:1px solid var(--border);}
   .panel-intro{font-size:13px; color:var(--text-dim); margin-bottom:16px; line-height:1.5;}
+  /* Ecological Evidence module */
+  .ev-scope-toggle{display:inline-flex; gap:2px; background:var(--bg-elev); border-radius:8px; padding:3px; margin-bottom:18px;}
+  .ev-scope-btn{border:none; background:none; padding:7px 14px; font-size:12px; font-weight:600; color:var(--text-dim); border-radius:6px; cursor:pointer; font-family:inherit;}
+  .ev-scope-btn.active{background:var(--bg-panel); color:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .ev-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:18px;}
+  .ev-stat{background:var(--bg-elev); border-radius:10px; padding:12px 14px;}
+  .ev-num{font-size:26px; font-weight:700; color:var(--accent); line-height:1;}
+  .ev-lbl{font-size:12px; font-weight:600; color:var(--text); margin-top:5px;}
+  .ev-prov{font-size:10.5px; color:var(--text-dim); margin-top:3px; line-height:1.35;}
+  .ev-quality{margin-bottom:18px;}
+  .ev-q-head, .ev-sens-head, .ev-cannot-head{font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px;}
+  .ev-q-bar{display:flex; height:12px; border-radius:6px; overflow:hidden; background:var(--bg-elev);}
+  .ev-q-seg{height:100%;}
+  .ev-q-verified{background:var(--status-safe);}
+  .ev-q-manual{background:var(--type-day-dot);}
+  .ev-q-acoustic{background:var(--status-near);}
+  .ev-q-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; font-size:11px; color:var(--text-dim);}
+  .ev-q-legend span{display:flex; align-items:center; gap:5px;}
+  .ev-dot{width:9px; height:9px; border-radius:2px; display:inline-block;}
+  .ev-sensitivity{background:var(--bg-elev); border-radius:10px; padding:12px 14px; margin-bottom:18px;}
+  .ev-sens-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px;}
+  .ev-sens-tag{font-size:13px; font-weight:700; padding:3px 10px; border-radius:20px;}
+  .ev-sens-con{background:var(--status-safe-soft); color:var(--status-safe);}
+  .ev-sens-ext{background:var(--bg-panel); color:var(--text); border:1px solid var(--border);}
+  .ev-sens-arrow{font-size:11px; color:var(--text-dim);}
+  .ev-sens-note{font-size:12px; color:var(--text-dim); line-height:1.45;}
+  .ev-cannot{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--bg-panel);}
+  .ev-cannot-list{margin:0; padding-left:18px;}
+  .ev-cannot-list li{font-size:12px; color:var(--text-dim); line-height:1.6;}
   /* Completeness */
   .cmp-headline{display:flex; align-items:center; gap:16px; margin-bottom:14px; flex-wrap:wrap;}
   .cmp-big{font-size:34px; font-weight:700; color:var(--status-safe); line-height:1;}
@@ -855,6 +884,24 @@
     </div>
   </div>
 
+  <div class="panel" data-home="patterns" id="evidencePanel" style="display:none;">
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('evidenceBody')"
+              aria-expanded="true" aria-controls="evidenceBody">
+        <span data-i18n="panelEvidenceTitle">Ökologische Evidenz</span>
+        <span class="chevron" id="evidenceBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="evidenceBody">
+      <div class="panel-intro" data-i18n="evidenceIntro">Jede Kennzahl hier lässt sich auf die zugrunde liegenden Beobachtungen zurückführen. Umschalten zwischen allen akustischen Erkennungen und nur belegten (bestätigt/visuell) Nachweisen.</div>
+      <div class="ev-scope-toggle">
+        <button class="ev-scope-btn active" data-scope="extended" onclick="setEvidenceScope('extended')" data-i18n="evScopeExtended">Alle Erkennungen</button>
+        <button class="ev-scope-btn" data-scope="conservative" onclick="setEvidenceScope('conservative')" data-i18n="evScopeConservative">Nur belegte</button>
+      </div>
+      <div id="evidenceContent"></div>
+    </div>
+  </div>
+
   <div class="panel" data-home="patterns" id="completenessPanel" style="display:none;">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('completenessBody')"
@@ -1102,8 +1149,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.23.1';
-const APP_VERSION_DATE = '2026-08-13';
+const APP_VERSION = '0.24.0';
+const APP_VERSION_DATE = '2026-08-14';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -1894,6 +1941,30 @@ const I18N = {
   tabMap:{de:"Karte & Zonen", en:"Map & zones"},
   panelSignatureTitle:{de:"Habitat-Signatur", en:"Habitat signature"},
   panelCompletenessTitle:{de:"Wie vollständig ist deine Artenliste?", en:"How complete is your species list?"},
+  panelEvidenceTitle:{de:"Ökologische Evidenz", en:"Ecological evidence"},
+  evidenceIntro:{de:"Jede Kennzahl hier lässt sich auf die zugrunde liegenden Beobachtungen zurückführen. Umschalten zwischen allen akustischen Erkennungen und nur belegten (bestätigt/visuell) Nachweisen.", en:"Every figure here traces back to the underlying observations. Switch between all acoustic detections and only established (confirmed/visual) records."},
+  evScopeExtended:{de:"Alle Erkennungen", en:"All detections"},
+  evScopeConservative:{de:"Nur belegte", en:"Established only"},
+  evRichness:{de:"Arten (beobachtet)", en:"species (observed)"},
+  evRichnessProv:{de:"nachgewiesen an {days} Tagen / {sessions} Sessions", en:"detected across {days} days / {sessions} sessions"},
+  evEffort:{de:"Sessions (Aufwand)", en:"sessions (effort)"},
+  evEffortProv:{de:"an {days} verschiedenen Tagen erfasst", en:"recorded on {days} distinct days"},
+  evCore:{de:"Kern-Arten", en:"core species"},
+  evCoreProv:{de:"an ≥ 50% der erfassten Tage präsent", en:"present on ≥50% of logged days"},
+  evSingle:{de:"Einzel-Nachweise", en:"single-day species"},
+  evSingleProv:{de:"nur an einem einzigen Tag erfasst", en:"detected on just one day"},
+  evQuality:{de:"Evidenz-Qualität der Artenliste", en:"Evidence quality of the species list"},
+  evVerified:{de:"bestätigt", en:"confirmed"},
+  evManual:{de:"manuell/visuell", en:"manual/visual"},
+  evAcoustic:{de:"nur akustisch", en:"acoustic only"},
+  evSensHead:{de:"Sensitivität: belegt vs. alle Nachweise", en:"Sensitivity: established vs. all detections"},
+  evSensNote:{de:"Wenn beide Betrachtungen dieselbe ökologische Geschichte erzählen, ist die Aussage robust. Große Unterschiede heißen: die Schlussfolgerung hängt an unbestätigten akustischen Erkennungen.", en:"If both views tell the same ecological story, the conclusion is robust. A large gap means the conclusion rests on unconfirmed acoustic detections."},
+  evCannotHead:{de:"Was diese Daten NICHT aussagen können", en:"What this data cannot tell you"},
+  evCannot1:{de:"keine absolute Häufigkeit — akustische Erkennungen sind keine Vogelzahl", en:"no absolute abundance — acoustic detections are not a bird count"},
+  evCannot2:{de:"keine Dichte (Vögel pro Fläche)", en:"no density (birds per area)"},
+  evCannot3:{de:"keine Bestandsgröße oder Populationstrends", en:"no population size or population trends"},
+  evCannot4:{de:"kein Ökosystem-Gesundheitswert — es gibt keine solche einzelne Zahl", en:"no ecosystem-health score — no such single number exists"},
+  evCannot5:{de:"kein bewiesener Ökoton — mehrere Habitat-Gilden belegen Heterogenität, keinen räumlichen Übergang", en:"no proven ecotone — several habitat guilds show heterogeneity, not a spatial transition"},
   completenessIntro:{de:"Wie viele Arten hast du wahrscheinlich schon erfasst — und wie viele fehlen vermutlich noch? Beruht nur auf Anwesenheit pro erfasstem Tag, nicht auf Erkennungszahlen.", en:"How many species have you likely recorded — and how many are probably still missing? Based only on presence per logged day, not on detection counts."},
   cmpDetected:{de:"bisher erfasst", en:"detected so far"},
   cmpEstimated:{de:"wahrscheinlich vorhanden (Untergrenze)", en:"likely present (lower bound)"},
@@ -2867,6 +2938,15 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.24.0', date:'2026-08-14', de:[
+      'Neuer Bereich „Ökologische Evidenz" (unter Muster): jede Kennzahl ist auf die zugrunde liegenden Beobachtungen rückführbar — Artenzahl, Aufwand, Kern-/Einzel-Arten und Evidenz-Qualität aus einer Art × Session-Matrix',
+      'Umschalter „Alle Erkennungen" ↔ „Nur belegte" als Sensitivitätstest: zeigt, ob eine Aussage auch nur mit bestätigten/visuellen Nachweisen trägt',
+      'Klarer Abschnitt „Was diese Daten NICHT aussagen können" (keine Häufigkeit, Dichte, Bestandsgröße, kein Gesundheitswert, kein bewiesener Ökoton)',
+    ], en:[
+      'New "Ecological evidence" section (under Patterns): every figure traces back to the underlying observations — richness, effort, core/single-day species and evidence quality, from a species × session matrix',
+      '"All detections" ↔ "Established only" toggle as a sensitivity test: shows whether a conclusion holds on confirmed/visual records alone',
+      'Explicit "What this data cannot tell you" section (no abundance, density, population size, health score, or proven ecotone)',
+    ]},
   { v:'0.23.1', date:'2026-08-13', de:[
       'Vogelbilder (Wikipedia) auf modernen Abruf umgestellt statt der alten JSONP-Skript-Technik — wurde von privatsphäre-strengen Browsern (Safari, Brave u.a.) teils stillschweigend blockiert',
       'Titel-Weiterleitungen werden jetzt berücksichtigt — Arten mit abweichendem Wikipedia-Artikelnamen zeigen jetzt ihr Bild statt des Platzhalter-Symbols',
@@ -3102,6 +3182,10 @@ const METHODOLOGY_CONTENT = {
     <h4>Vollständigkeit der Artenliste</h4>
     <p>Der Bereich „Wie vollständig ist deine Artenliste?" schätzt, wie viele Arten an deinem Standort wahrscheinlich vorkommen, im Vergleich zu den bisher erfassten. Grundlage ist ausschließlich <strong>Anwesenheit/Abwesenheit pro erfasstem Tag</strong> (Inzidenz-Daten) — nie Erkennungszahlen. Die Artenzuwachs-Kurve (Stichproben-Rarefaction) zeigt, wie die Liste mit jedem Tag wächst; solange sie steigt, ist die Liste unvollständig. Die Schätzzahl ist <strong>Chao2</strong>, ausdrücklich als <strong>Untergrenze</strong> zu verstehen: mit wenigen Daten schwankt sie stark. Es werden <strong>keine</strong> Aussagen über Häufigkeit, Dichte oder Bestandsgrößen gemacht.</p>
 
+    <h4>Ökologische Evidenz</h4>
+    <p>Der Bereich „Ökologische Evidenz" baut auf einer <strong>Art × Session-Matrix</strong> auf: jede Kennzahl (Artenzahl, Kern-/Einzel-Arten, Aufwand, Evidenz-Qualität) wird direkt aus den erfassten Beobachtungen berechnet und ist rückverfolgbar. Der Umschalter <strong>„Alle Erkennungen" ↔ „Nur belegte"</strong> ist ein Sensitivitätstest: „belegt" zählt nur bestätigte oder manuell/visuell erfasste Nachweise. Erzählen beide dieselbe Geschichte, ist die Aussage robust.</p>
+    <p><em>Bewusst (noch) nicht gebaut, weil die Datenmenge es nicht trägt:</em> zeitliche Gemeinschaftsanalyse (Morgen/Abend, Turnover), ein eigenes „Ökoton"-Modul und eine erweiterte Diversitäts-Suite (Hill-Zahlen) auf Erkennungsbasis. Diese kommen erst mit deutlich mehr, gleichmäßiger erfassten Tagen sinnvoll in Frage.</p>
+
     <h4>Habitat-Signatur</h4>
     <p>Der Bereich „Habitat-Signatur" fasst zusammen, aus welchen Nahrungsgilden (nach <strong>AVONET</strong>-Trophie-Kategorien) und Lebensraum-Bezügen deine Gemeinschaft besteht, gewichtet nach Tagen gesehen. Das ist <strong>rein beschreibend</strong>: Es sagt, womit die Zusammensetzung an diesem einen Standort vereinbar ist — nicht, was sie „beweist". Ein echter statistischer Indikatorart-Nachweis (IndVal, Dufrêne &amp; Legendre 1997) bräuchte viele Standorte zum Vergleich; mit einem Rekorder ist das grundsätzlich nicht möglich.</p>
 
@@ -3129,6 +3213,10 @@ const METHODOLOGY_CONTENT = {
 
     <h4>Species-list completeness</h4>
     <p>The "How complete is your species list?" section estimates how many species likely occur at your site versus how many you've recorded. It uses only <strong>presence/absence per logged day</strong> (incidence data) — never detection counts. The accumulation curve (sample-based rarefaction) shows how the list grows with each day; while it's still rising, the list is incomplete. The estimate is <strong>Chao2</strong>, to be read explicitly as a <strong>lower bound</strong>: with little data it fluctuates a lot. It makes <strong>no</strong> claims about abundance, density, or population size.</p>
+
+    <h4>Ecological evidence</h4>
+    <p>The "Ecological evidence" section is built on a <strong>species × session matrix</strong>: every figure (richness, core/single-day species, effort, evidence quality) is computed directly from the logged observations and is traceable back to them. The <strong>"All detections" ↔ "Established only"</strong> toggle is a sensitivity test: "established" counts only confirmed or manually/visually logged records. If both tell the same story, the conclusion is robust.</p>
+    <p><em>Deliberately not built (yet), because the sample size doesn't support it:</em> temporal community analysis (morning/evening, turnover), a dedicated "ecotone" module, and an extended detection-based diversity suite (Hill numbers). These only become meaningful with substantially more, evenly-sampled days.</p>
 
     <h4>Habitat signature</h4>
     <p>The "Habitat signature" section summarises which feeding guilds (following <strong>AVONET</strong> trophic categories) and habitat associations your community is made of, weighted by days seen. This is <strong>purely descriptive</strong>: it states what the composition at this one site is consistent with — not what it "proves". A real statistical indicator-species test (IndVal, Dufrêne &amp; Legendre 1997) would require many sites to compare against; with a single recorder that is fundamentally not possible.</p>
@@ -4253,6 +4341,201 @@ async function renderDetectionHistory(name){
   `;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SPECIES × SESSION MATRIX — the analytical backbone
+// ───────────────────────────────────────────────────────────────────────────
+// Core principle of this app: every ecological conclusion must trace back to
+// the underlying observations. This one structure is that provenance layer —
+// every downstream figure (richness, frequency, persistence, accumulation,
+// diversity, habitat evidence) is computed FROM this matrix, not ad hoc, so
+// any number can be walked back to the exact sessions and detections behind it.
+//
+// A "session" = one logged entry (one recording occasion). A cell holds what
+// was actually observed for that species in that session — never an inference.
+// The `scope` parameter is the conservative/extended lever:
+//   'extended'     — every acoustic detection counts as presence (all data)
+//   'conservative' — only sessions where the species is verified (confirmed)
+//                    or manually/visually logged; unverified acoustic-only
+//                    detections are treated as NOT established. This is the
+//                    sensitivity check: does a conclusion survive on hard
+//                    evidence alone, or only with all acoustic detections?
+function buildMatrix(entries, scope){
+  scope = scope || 'extended';
+  const bird = entries.filter(e => (e.type||'bird') === 'bird');
+  // sessions in chronological order; each is a real logged entry
+  const sessions = bird
+    .map(e => ({ id: e.id || (e.date + (e.time||'')), date: e.date, time: e.time||'', zone: e.zone==='B'?'B':'A' }))
+    .sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+  const sessionIndex = {};
+  sessions.forEach((s,i)=> sessionIndex[s.id] = i);
+
+  // species → { cells: {sessionId: {detected, detections, individuals, source, verifStatus, maxConf}}, ... }
+  const species = {};
+  bird.forEach(e=>{
+    const sid = e.id || (e.date + (e.time||''));
+    (e.species||[]).forEach(s=>{
+      const name = s.species || s.name;
+      const vstatus = (verifications[name]||{}).status || null;   // 'confirmed'|'rejected'|null
+      const src = obsSource(s);
+      const dets = obsDetections(s);
+      const isManual = (src === 'manual' || src === 'visual') || obsIndividuals(s) !== null;
+
+      // establishment rule depends on scope
+      let established;
+      if(vstatus === 'rejected'){
+        established = false;                          // user rejected the ID → never counts
+      } else if(scope === 'conservative'){
+        established = (vstatus === 'confirmed') || isManual;  // hard evidence only
+      } else {
+        established = true;                           // extended: any acoustic detection counts
+      }
+
+      if(!species[name]) species[name] = { cells:{}, guild: speciesGuild(name) };
+      const conf = obsConfStats(s);
+      species[name].cells[sid] = {
+        detected: established,
+        detections: dets,
+        individuals: obsIndividuals(s),
+        source: src,
+        verifStatus: vstatus,
+        maxConf: conf.max
+      };
+    });
+  });
+
+  // per-species roll-ups (all derived, all traceable to cells above)
+  const names = Object.keys(species);
+  names.forEach(n=>{
+    const cells = Object.values(species[n].cells);
+    const estCells = cells.filter(c=>c.detected);
+    const estSessions = Object.entries(species[n].cells).filter(([,c])=>c.detected).map(([sid])=>sid);
+    const estDays = new Set(estSessions.map(sid=>{
+      const idx = sessionIndex[sid]; return sessions[idx] ? sessions[idx].date : sid;
+    }));
+    species[n].sessionsDetected = estSessions.length;
+    species[n].daysDetected = estDays.size;
+    species[n].totalDetections = estCells.reduce((a,c)=>a+c.detections,0);
+    species[n].anyVerified = cells.some(c=>c.verifStatus==='confirmed');
+    species[n].anyManual = cells.some(c=>c.source==='manual'||c.source==='visual'||c.individuals!==null);
+    species[n].maxConf = Math.max(0, ...cells.map(c=>c.maxConf||0));
+  });
+
+  const allDays = new Set(sessions.map(s=>s.date));
+  return {
+    scope, sessions, sessionIndex, species,
+    nSessions: sessions.length,
+    nDays: allDays.size,
+    days: Array.from(allDays).sort(),
+    // richness under this scope = species with >=1 established cell
+    richness: names.filter(n=>species[n].sessionsDetected>0).length,
+    speciesNames: names.filter(n=>species[n].sessionsDetected>0),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ECOLOGICAL EVIDENCE MODULE
+// ───────────────────────────────────────────────────────────────────────────
+// A presentation layer over the species×session matrix. It does not invent new
+// statistics — it surfaces the core figures (richness, detection frequency,
+// persistence, sampling effort, evidence quality) WITH the observations behind
+// them, under a conservative/extended lever, plus an explicit "what this cannot
+// tell you" section. The point is provenance, not more numbers.
+let evidenceScope = 'extended';
+function setEvidenceScope(scope){
+  evidenceScope = scope;
+  document.querySelectorAll('.ev-scope-btn').forEach(b=>
+    b.classList.toggle('active', b.getAttribute('data-scope')===scope));
+  renderEvidence();
+}
+
+async function currentEntries(){
+  try{ const r = await db.get('entries'); return r && r.value ? JSON.parse(r.value) : []; }
+  catch(e){ return []; }
+}
+
+async function renderEvidence(){
+  const panel = document.getElementById('evidencePanel');
+  if(!panel) return;
+  const content = document.getElementById('evidenceContent');
+  const entries = await currentEntries();
+  const M = buildMatrix(entries, evidenceScope);
+  const Mext = buildMatrix(entries, 'extended');   // for the conservative-vs-extended comparison line
+  const Mcon = buildMatrix(entries, 'conservative');
+  if(M.nSessions === 0){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  // ---- evidence-quality tally (how much of the richness rests on hard evidence) ----
+  const verified = Mext.speciesNames.filter(n=> Mext.species[n].anyVerified).length;
+  const manual   = Mext.speciesNames.filter(n=> Mext.species[n].anyManual && !Mext.species[n].anyVerified).length;
+  const acousticOnly = Mext.richness - verified - manual;
+
+  // ---- persistence tiers (core / intermediate / single-session) from the matrix ----
+  const tier = {core:0, inter:0, single:0};
+  M.speciesNames.forEach(n=>{
+    const frac = M.species[n].daysDetected / M.nDays;
+    if(M.species[n].daysDetected === 1) tier.single++;
+    else if(frac >= 0.5) tier.core++;
+    else tier.inter++;
+  });
+
+  // ---- the headline figures, each labelled with provenance ----
+  const stat = (num, label, prov) =>
+    `<div class="ev-stat"><div class="ev-num">${num}</div><div class="ev-lbl">${label}</div><div class="ev-prov">${prov}</div></div>`;
+
+  const grid = `
+    <div class="ev-grid">
+      ${stat(M.richness, t('evRichness'), t('evRichnessProv').replace('{days}', M.nDays).replace('{sessions}', M.nSessions))}
+      ${stat(M.nSessions, t('evEffort'), t('evEffortProv').replace('{days}', M.nDays))}
+      ${stat(tier.core, t('evCore'), t('evCoreProv'))}
+      ${stat(tier.single, t('evSingle'), t('evSingleProv'))}
+    </div>`;
+
+  // ---- evidence-quality bar ----
+  const totalR = Mext.richness || 1;
+  const evbar = `
+    <div class="ev-quality">
+      <div class="ev-q-head">${t('evQuality')}</div>
+      <div class="ev-q-bar">
+        <div class="ev-q-seg ev-q-verified" style="width:${verified/totalR*100}%" title="${t('evVerified')}"></div>
+        <div class="ev-q-seg ev-q-manual" style="width:${manual/totalR*100}%" title="${t('evManual')}"></div>
+        <div class="ev-q-seg ev-q-acoustic" style="width:${acousticOnly/totalR*100}%" title="${t('evAcoustic')}"></div>
+      </div>
+      <div class="ev-q-legend">
+        <span><i class="ev-dot ev-q-verified"></i>${verified} ${t('evVerified')}</span>
+        <span><i class="ev-dot ev-q-manual"></i>${manual} ${t('evManual')}</span>
+        <span><i class="ev-dot ev-q-acoustic"></i>${acousticOnly} ${t('evAcoustic')}</span>
+      </div>
+    </div>`;
+
+  // ---- conservative vs extended sensitivity line ----
+  const sens = `
+    <div class="ev-sensitivity">
+      <div class="ev-sens-head">${t('evSensHead')}</div>
+      <div class="ev-sens-row">
+        <span class="ev-sens-tag ev-sens-con">${t('evScopeConservative')}: ${Mcon.richness}</span>
+        <span class="ev-sens-arrow">vs</span>
+        <span class="ev-sens-tag ev-sens-ext">${t('evScopeExtended')}: ${Mext.richness}</span>
+      </div>
+      <div class="ev-sens-note">${t('evSensNote')}</div>
+    </div>`;
+
+  // ---- the honest boundary: what the data cannot tell us ----
+  const cannot = `
+    <div class="ev-cannot">
+      <div class="ev-cannot-head">${t('evCannotHead')}</div>
+      <ul class="ev-cannot-list">
+        <li>${t('evCannot1')}</li>
+        <li>${t('evCannot2')}</li>
+        <li>${t('evCannot3')}</li>
+        <li>${t('evCannot4')}</li>
+        <li>${t('evCannot5')}</li>
+      </ul>
+    </div>`;
+
+  content.innerHTML = grid + evbar + sens + cannot;
+}
+// ═══════════════════════════════════════════════════════════════════════════
+
 function buildSpeciesStats(entries){
   const agg = {};
   const loggedDays = new Set();
@@ -4436,6 +4719,7 @@ async function renderAll(){
   try{ renderArrivals(entries); }catch(err){ console.error('renderArrivals failed', err); }
   try{ renderSignature(entries); }catch(err){ console.error('renderSignature failed', err); }
   try{ renderCompleteness(entries); }catch(err){ console.error('renderCompleteness failed', err); }
+  try{ renderEvidence(); }catch(err){ console.error('renderEvidence failed', err); }
   try{ updateNewDot(entries); }catch(err){ console.error('updateNewDot failed', err); }
 
   // One table, filtered — birds and night-camera sightings were two identical
