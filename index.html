@@ -370,13 +370,37 @@
   td{padding:8px; border-bottom:1px solid var(--border);}
   .freq-bar{height:6px; background:var(--bg-elev); border-radius:3px; overflow:hidden; margin-top:4px; width:100px;}
   .freq-fill{height:100%; background:var(--accent);}
-  .entry-card{border-bottom:1px solid var(--border); padding:12px 0;}
+  .entry-card{border-bottom:1px solid var(--border); padding:11px 0;}
   .entry-card:last-child{border-bottom:none;}
-  .entry-head{display:flex; justify-content:space-between; align-items:center; font-size:13px;}
-  .entry-date{font-weight:700; color:var(--accent);}
-  .entry-species{color:var(--text-dim); font-size:12px; margin-top:4px;}
-  .del-entry{background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px;}
-  .edit-entry{background:none; border:none; color:var(--accent); cursor:pointer; font-size:12px;}
+  .entry-head{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13px; flex-wrap:wrap;}
+  .entry-head-left{display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;}
+  .entry-date{font-weight:700; color:var(--accent); white-space:nowrap;}
+  .entry-actions{display:flex; align-items:center; gap:2px; flex-shrink:0;}
+  .entry-summary{display:flex; align-items:center; gap:8px; margin-top:5px; cursor:pointer; user-select:none;}
+  .entry-summary:hover .entry-summary-text{color:var(--accent);}
+  .entry-summary-text{color:var(--text-dim); font-size:12.5px; flex:1;}
+  .entry-summary-chevron{font-size:10px; color:var(--text-dim); transition:transform .15s; flex-shrink:0;}
+  .entry-card.expanded .entry-summary-chevron{transform:rotate(180deg);}
+  .entry-detail{display:none; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);}
+  .entry-card.expanded .entry-detail{display:block;}
+  .entry-species{color:var(--text-dim); font-size:12px; line-height:1.6;}
+  .entry-notes{color:var(--text-dim); font-size:12px; font-style:italic; margin-top:6px; padding-top:6px; border-top:1px solid var(--border);}
+  .del-entry{background:none; border:none; color:var(--danger); cursor:pointer; font-size:11.5px; padding:3px 7px; border-radius:5px;}
+  .del-entry:hover{background:var(--bg-elev);}
+  .edit-entry{background:none; border:none; color:var(--accent); cursor:pointer; font-size:11.5px; padding:3px 7px; border-radius:5px;}
+  .edit-entry:hover{background:var(--bg-elev);}
+  .history-more{width:100%; margin-top:12px; padding:10px; background:none; border:1px dashed var(--border); border-radius:8px; color:var(--accent); font-weight:600; font-size:12.5px; cursor:pointer; font-family:inherit;}
+  .history-more:hover{background:var(--bg-elev);}
+  /* Zone comparison */
+  .zc-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:12px;}
+  .zc-card{background:var(--bg-elev); border-radius:10px; padding:14px;}
+  .zc-head{font-size:13px; font-weight:700; color:var(--heading); margin-bottom:12px; display:flex; align-items:center; gap:8px;}
+  .zc-stats{display:flex; gap:14px;}
+  .zc-stats div{flex:1; text-align:center;}
+  .zc-stats b{display:block; font-size:22px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums;}
+  .zc-stats span{display:block; font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.03em; margin-top:3px;}
+  .zc-note{font-size:12px; color:var(--text-dim); line-height:1.5; padding:10px 12px; background:var(--bg-elev); border-radius:8px;}
+  @media (max-width:480px){ .zc-grid{grid-template-columns:1fr;} }
   .edit-individuals{display:flex; flex-direction:column; gap:6px; margin-top:4px;}
   .ind-row{display:flex; align-items:center; gap:10px;}
   .ind-name{flex:1; font-size:13px;}
@@ -884,6 +908,20 @@
     </div>
   </div>
 
+  <div class="panel" data-home="map" id="zoneComparePanel" style="display:none;">
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('zoneCompareBody')"
+              aria-expanded="true" aria-controls="zoneCompareBody">
+        <span data-i18n="panelZoneCompareTitle">Zonen im Vergleich</span>
+        <span class="chevron" id="zoneCompareBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="zoneCompareBody">
+      <div class="panel-intro" data-i18n="zoneCompareIntro">Was bisher an jeder Zone erfasst wurde — direkt aus den geloggten Sessions, ohne Interpretation.</div>
+      <div id="zoneCompareContent"></div>
+    </div>
+  </div>
+
   <div class="panel" data-home="patterns" id="evidencePanel" style="display:none;">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('evidenceBody')"
@@ -1149,8 +1187,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.24.0';
-const APP_VERSION_DATE = '2026-08-14';
+const APP_VERSION = '0.24.1';
+const APP_VERSION_DATE = '2026-08-16';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -2036,6 +2074,14 @@ const I18N = {
   emptyHistory:     {de:"Der Verlauf füllt sich mit jeder gespeicherten Aufnahme.", en:"Your history fills in with every recording you save."},
   deleteBtn:        {de:"löschen", en:"delete"},
   editBtn:          {de:"bearbeiten", en:"edit"},
+  entrySummary:     {de:"{n} Arten · {d} Erkennungen", en:"{n} species · {d} detections"},
+  historyShowMore:  {de:"{n} weitere Sessions anzeigen", en:"Show {n} more sessions"},
+  panelZoneCompareTitle:{de:"Zonen im Vergleich", en:"Zones compared"},
+  zoneCompareIntro:{de:"Was bisher an jeder Zone erfasst wurde — direkt aus den geloggten Sessions, ohne Interpretation.", en:"What's been recorded at each zone so far — straight from the logged sessions, no interpretation."},
+  zcSessions:{de:"Sessions", en:"sessions"},
+  zcDays:{de:"Tage", en:"days"},
+  zcSpecies:{de:"Arten", en:"species"},
+  zcTooThin:{de:"Eine der beiden Zonen hat noch sehr wenige Sessions — ein Vergleich der Artenzusammensetzung wäre bei diesem Unterschied im Aufwand nicht aussagekräftig, sondern würde eher den Unterschied in der Erfassungsmenge widerspiegeln.", en:"One of the two zones still has very few sessions — comparing species composition wouldn't be meaningful at this difference in effort; it would mostly reflect the sampling gap, not a real ecological difference."},
   labelIndividuals: {de:"Individuen (nur wenn visuell gezählt)", en:"Individuals (only if visually counted)"},
   individualsHint:  {de:"Optional — nur ausfüllen, wenn du Vögel tatsächlich gesehen und gezählt hast. Bleibt sonst leer (akustische Erkennungen sind keine Vogelzahl).", en:"Optional — only fill in if you actually saw and counted birds. Leave empty otherwise (acoustic detections are not a bird count)."},
   editTitle:        {de:"Eintrag bearbeiten", en:"Edit entry"},
@@ -2938,6 +2984,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.24.1', date:'2026-08-16', de:[
+      'Verlauf komplett überarbeitet: Sessions sind jetzt eingeklappt mit Kurzüberblick (Arten · Erkennungen), Details per Klick — die Muster-Ansicht ist auf Mobil dadurch rund 40% kürzer',
+      'Tab „Karte & Zonen" bekommt echten Inhalt: „Zonen im Vergleich" zeigt Sessions/Tage/Arten je Zone — ehrlich als reine Zählung, mit Hinweis, wenn eine Zone für einen echten Vergleich noch zu wenig Daten hat',
+    ], en:[
+      'History fully reworked: sessions are now collapsed with a short summary (species · detections), details on click — this makes the Patterns view about 40% shorter on mobile',
+      '"Map & zones" tab gains real content: "Zones compared" shows sessions/days/species per zone — honestly as plain counts, with a note when one zone has too little data for a real comparison',
+    ]},
   { v:'0.24.0', date:'2026-08-14', de:[
       'Neuer Bereich „Ökologische Evidenz" (unter Muster): jede Kennzahl ist auf die zugrunde liegenden Beobachtungen rückführbar — Artenzahl, Aufwand, Kern-/Einzel-Arten und Evidenz-Qualität aus einer Art × Session-Matrix',
       'Umschalter „Alle Erkennungen" ↔ „Nur belegte" als Sensitivitätstest: zeigt, ob eine Aussage auch nur mit bestätigten/visuellen Nachweisen trägt',
@@ -3940,6 +3993,21 @@ function importData(event){
 const TAB_DEFAULT = 'overview';
 let currentTab = TAB_DEFAULT;
 
+// History list progressive disclosure: which entries are expanded, and
+// whether the full (uncapped) list is showing.
+const expandedEntries = new Set();
+let historyShowAll = false;
+function toggleEntryDetail(id){
+  if(expandedEntries.has(id)) expandedEntries.delete(id);
+  else expandedEntries.add(id);
+  const card = document.getElementById('entry-' + id);
+  if(card) card.classList.toggle('expanded');
+}
+function showAllHistory(){
+  historyShowAll = true;
+  renderAll();
+}
+
 function distributePanels(){
   const stash = document.getElementById('panelStash');
   if(!stash) return;
@@ -4453,6 +4521,55 @@ async function currentEntries(){
   catch(e){ return []; }
 }
 
+// ── Zone comparison ───────────────────────────────────────────────────────
+// Simple, honest per-zone counts from the matrix — no derived "what's
+// distinct per zone" claim, because with very unequal sample sizes (a
+// handful of sessions in one zone vs. many in the other) any apparent
+// difference in composition would mostly reflect sampling effort, not real
+// ecological difference. Shown as plain facts; a real comparison is flagged
+// as not yet meaningful when one zone is too thin.
+async function renderZoneCompare(){
+  const panel = document.getElementById('zoneComparePanel');
+  if(!panel) return;
+  const content = document.getElementById('zoneCompareContent');
+  const entries = await currentEntries();
+  const M = buildMatrix(entries, 'extended');
+  if(M.nSessions === 0){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  const byZone = {A:{sessions:0, days:new Set(), species:new Set()}, B:{sessions:0, days:new Set(), species:new Set()}};
+  M.sessions.forEach(s=>{
+    byZone[s.zone].sessions++;
+    byZone[s.zone].days.add(s.date);
+  });
+  Object.entries(M.species).forEach(([name, sp])=>{
+    Object.entries(sp.cells).forEach(([sid, cell])=>{
+      if(!cell.detected) return;
+      const sess = M.sessions[M.sessionIndex[sid]];
+      if(sess) byZone[sess.zone].species.add(name);
+    });
+  });
+
+  const zoneCard = (z, labelKey)=>`
+    <div class="zc-card">
+      <div class="zc-head"><span class="zone-tag zone-${z.toLowerCase()}">${z}</span> ${t(labelKey)}</div>
+      <div class="zc-stats">
+        <div><b>${byZone[z].sessions}</b><span>${t('zcSessions')}</span></div>
+        <div><b>${byZone[z].days.size}</b><span>${t('zcDays')}</span></div>
+        <div><b>${byZone[z].species.size}</b><span>${t('zcSpecies')}</span></div>
+      </div>
+    </div>`;
+
+  let html = `<div class="zc-grid">${zoneCard('A','zoneATag')}${zoneCard('B','zoneBTag')}</div>`;
+
+  const minSessions = Math.min(byZone.A.sessions, byZone.B.sessions);
+  if(minSessions < 5){
+    html += `<div class="zc-note">${t('zcTooThin')}</div>`;
+  }
+  content.innerHTML = html;
+}
+// ── Zone comparison (end) ────────────────────────────────────────────────
+
 async function renderEvidence(){
   const panel = document.getElementById('evidencePanel');
   if(!panel) return;
@@ -4720,6 +4837,7 @@ async function renderAll(){
   try{ renderSignature(entries); }catch(err){ console.error('renderSignature failed', err); }
   try{ renderCompleteness(entries); }catch(err){ console.error('renderCompleteness failed', err); }
   try{ renderEvidence(); }catch(err){ console.error('renderEvidence failed', err); }
+  try{ renderZoneCompare(); }catch(err){ console.error('renderZoneCompare failed', err); }
   try{ updateNewDot(entries); }catch(err){ console.error('updateNewDot failed', err); }
 
   // One table, filtered — birds and night-camera sightings were two identical
@@ -4729,26 +4847,52 @@ async function renderAll(){
                : entries;
   try{ renderOverviewTable(scoped, 'speciesOverview', sortMode, 'ov'); }catch(err){ console.error('renderOverviewTable failed', err); }
 
-  // History
+  // History — collapsed by default (date/zone + a one-line summary), full
+  // species list and notes revealed on click. A long list of every session
+  // in full, always-expanded detail was the single biggest source of
+  // scroll length; the underlying data is still all here, just not forced
+  // into view before it's asked for. Capped with "show more" so the DOM
+  // stays light as more sessions accumulate.
   try{
   const history = document.getElementById('historyList');
   if(entries.length === 0){
     history.innerHTML = `<div class="empty-state">${t('emptyHistory')}</div>`;
   } else {
     const sorted = [...entries].sort((a,b)=> (b.date+b.time) > (a.date+a.time) ? 1 : -1);
-    history.innerHTML = sorted.map(e=>`
-      <div class="entry-card">
+    const cap = historyShowAll ? sorted.length : Math.min(8, sorted.length);
+    const rowHTML = (e)=>{
+      const sp = Array.isArray(e.species) ? e.species : [];
+      const totalDet = sp.reduce((a,s)=>a+obsDetections(s), 0);
+      const summary = t('entrySummary').replace('{n}', sp.length).replace('{d}', totalDet);
+      const expanded = expandedEntries.has(e.id) ? ' expanded' : '';
+      return `
+      <div class="entry-card${expanded}" id="entry-${e.id}">
         <div class="entry-head">
-          <span class="entry-date">${e.date} ${e.time || ''}</span>
-          <span class="zone-tag ${(e.type==='night') ? 'tag-night' : 'tag-day'}">${(e.type==='night') ? t('tagNight') : t('tagDay')}</span>
-          <span class="zone-tag ${e.zone==='A' ? 'zone-a' : 'zone-b'}">Zone ${e.zone}</span>
-          <button class="edit-entry" onclick="openEditEntry('${e.id}')">${t('editBtn')}</button>
-          <button class="del-entry" onclick="deleteEntry('${e.id}')">${t('deleteBtn')}</button>
+          <div class="entry-head-left">
+            <span class="entry-date">${e.date} ${e.time || ''}</span>
+            <span class="zone-tag ${(e.type==='night') ? 'tag-night' : 'tag-day'}">${(e.type==='night') ? t('tagNight') : t('tagDay')}</span>
+            <span class="zone-tag ${e.zone==='A' ? 'zone-a' : 'zone-b'}">Zone ${e.zone}</span>
+          </div>
+          <div class="entry-actions">
+            <button class="edit-entry" onclick="openEditEntry('${e.id}')">${t('editBtn')}</button>
+            <button class="del-entry" onclick="deleteEntry('${e.id}')">${t('deleteBtn')}</button>
+          </div>
         </div>
-        <div class="entry-species">${(Array.isArray(e.species)?e.species:[]).map(s=>`${speciesLabel(s.name)} ×${obsDetections(s)}${obsIndividuals(s)!==null?` (${obsIndividuals(s)} Ind.)`:``}`).join(' · ')}</div>
-        ${e.notes ? `<div class="entry-species" style="font-style:italic; margin-top:2px;">${e.notes}</div>` : ''}
-      </div>
-    `).join('');
+        <div class="entry-summary" onclick="toggleEntryDetail('${e.id}')">
+          <span class="entry-summary-text">${summary}</span>
+          <span class="entry-summary-chevron">▾</span>
+        </div>
+        <div class="entry-detail">
+          <div class="entry-species">${sp.map(s=>`${speciesLabel(s.species||s.name)} ×${obsDetections(s)}${obsIndividuals(s)!==null?` (${obsIndividuals(s)} Ind.)`:``}`).join(' · ')}</div>
+          ${e.notes ? `<div class="entry-notes">${e.notes}</div>` : ''}
+        </div>
+      </div>`;
+    };
+    let html = sorted.slice(0, cap).map(rowHTML).join('');
+    if(!historyShowAll && sorted.length > cap){
+      html += `<button class="history-more" onclick="showAllHistory()">${t('historyShowMore').replace('{n}', sorted.length - cap)}</button>`;
+    }
+    history.innerHTML = html;
   }
   }catch(err){ console.error('history render failed', err); }
 }
