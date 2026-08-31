@@ -1187,7 +1187,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.24.1';
+const APP_VERSION = '0.25.0';
 const APP_VERSION_DATE = '2026-08-16';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1424,6 +1424,43 @@ function statusBadgeHTML(name){
   return `<span class="status-badge ${s.cls}">${label}</span>`;
 }
 
+let TOTAL_LOGGED_DAYS = 0;   // set during overview aggregation; used by combinedEvidence()
+// Combined evidence score (Beseler et al. 2026, Ecol. Indic. 115358).
+// Their validated approach to separating true from false BirdNET positives
+// combines two independent signals into one score:
+//   • top-5% mean confidence — rank a species' detections by score and average
+//     the highest 5% (needs >=20 detections; else mean of all). More robust
+//     than a plain mean, which borderline calls drag down.
+//   • temporal coverage — fraction of logged days on which the species appears
+//     at all. Repeated presence across days is hard for a false positive to fake.
+// Both scaled to 0–1, averaged with equal weight. In their farmland dataset
+// this reached ~84% expert-confirmation. We compute the same score per species;
+// it feeds the reliability tier below rather than replacing its label.
+// NOTE ON THRESHOLDS: their absolute cutoffs (0.708 global, 0.6 per-field) are
+// tuned to their recorders / dawn AudioMoth protocol / German farmland and are
+// deliberately NOT copied here — that would be false precision. We use the
+// score's shape (both signals must be reasonably high), not their constant.
+function top5MeanConfidence(confs){
+  if(!confs.length) return null;
+  if(confs.length < 20) return confs.reduce((a,b)=>a+b,0) / confs.length;  // too few → plain mean
+  const sorted = [...confs].sort((a,b)=>b-a);
+  const k = Math.max(1, Math.ceil(confs.length * 0.05));
+  const top = sorted.slice(0, k);
+  return top.reduce((a,b)=>a+b,0) / top.length;
+}
+function combinedEvidence(d){
+  const confs = d.confidences || [];
+  if(confs.length === 0) return null;
+  // temporal coverage: days this species was seen / total logged days.
+  // d.days is the per-species set; TOTAL_LOGGED_DAYS is set during aggregation.
+  const daysSeen = d.days ? d.days.size : 0;
+  const totalDays = (typeof TOTAL_LOGGED_DAYS === 'number' && TOTAL_LOGGED_DAYS > 0) ? TOTAL_LOGGED_DAYS : 1;
+  const coverage = Math.min(1, daysSeen / totalDays);       // 0–1
+  const top5 = top5MeanConfidence(confs);                   // already 0–1
+  const score = (top5 + coverage) / 2;                      // equal weight, 0–1
+  return { score, top5, coverage, daysSeen, totalDays };
+}
+
 // Reliability tier — how much the stored BirdNET confidences back the ID.
 // Two independent things drive trust: repetition (same species across several
 // sessions / many detections is hard to fake) and peak confidence (BirdNET's
@@ -1438,20 +1475,43 @@ function reliabilityTier(d){
   if(n === 0) return {tier:'none', n:0, sessions};
   const maxC  = Math.max(...confs) * 100;
   const meanC = confs.reduce((a,b)=>a+b,0) / n * 100;
+
+  // Combined evidence score (Beseler et al. 2026): top-5% confidence × temporal
+  // coverage. This is the primary driver — it captures "high-quality detections
+  // that also recur across days", the pattern their validation showed best
+  // separates true from false positives. The older session/detection guards are
+  // kept as a floor so a genuinely repeated species is never demoted.
+  const ev = combinedEvidence(d);
+  const top5 = ev ? ev.top5 * 100 : maxC;
+  const coverage = ev ? ev.coverage : 0;
+
   let tier;
-  if(sessions >= 3 || n >= 5 || (maxC >= 85 && sessions >= 2))      tier = 'solid';
-  else if(n <= 2 && maxC < 70)                                       tier = 'verify';
-  else                                                              tier = 'probable';
-  return {tier, n, sessions, maxC, meanC};
+  // strong on both axes → solid; recurs across sessions is itself strong evidence
+  if((ev && ev.score >= 0.55) || sessions >= 3 || n >= 5 || (maxC >= 85 && sessions >= 2)){
+    tier = 'solid';
+  // weak on both the quality and the recurrence axis → verify
+  } else if((ev && ev.score < 0.35 && sessions < 2) || (n <= 2 && maxC < 70)){
+    tier = 'verify';
+  } else {
+    tier = 'probable';
+  }
+  return {tier, n, sessions, maxC, meanC, top5, coverage, score: ev ? ev.score : null};
 }
 
 function reliabilityBadgeHTML(d){
   const r = reliabilityTier(d);
   if(r.tier === 'none') return '';
   const label = t('rel' + r.tier.charAt(0).toUpperCase() + r.tier.slice(1));
-  const tip = t('relTip' + r.tier.charAt(0).toUpperCase() + r.tier.slice(1))
-    + ` (${lang==='en'?'max':'max.'} ${r.maxC.toFixed(0)}%, Ø ${r.meanC.toFixed(0)}%, `
-    + `${r.n} ${lang==='en'?'det.':'Det.'}, ${r.sessions} ${lang==='en'?'sess.':'Sess.'})`;
+  let tip = t('relTip' + r.tier.charAt(0).toUpperCase() + r.tier.slice(1));
+  if(r.score !== null && r.score !== undefined){
+    // surface the combined-evidence breakdown so the tier is traceable
+    tip += ` (${lang==='en'?'evidence':'Evidenz'} ${(r.score*100).toFixed(0)}%: top-5% ${r.top5.toFixed(0)}%, `
+        + `${lang==='en'?'coverage':'Abdeckung'} ${(r.coverage*100).toFixed(0)}%, `
+        + `${r.n} ${lang==='en'?'det.':'Det.'}, ${r.sessions} ${lang==='en'?'sess.':'Sess.'})`;
+  } else {
+    tip += ` (${lang==='en'?'max':'max.'} ${r.maxC.toFixed(0)}%, Ø ${r.meanC.toFixed(0)}%, `
+        + `${r.n} ${lang==='en'?'det.':'Det.'}, ${r.sessions} ${lang==='en'?'sess.':'Sess.'})`;
+  }
   return `<span class="rel-badge rel-${r.tier}" title="${tip.replace(/"/g,'&quot;')}">${label}</span>`;
 }
 
@@ -2984,6 +3044,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.25.0', date:'2026-08-16', de:[
+      'Verlässlichkeits-Einstufung nutzt jetzt einen kombinierten Evidenz-Wert nach Beseler et al. 2026 (Ecological Indicators): beste-5%-Konfidenz kombiniert mit zeitlicher Abdeckung über erfasste Tage — trennt echte von falschen Erkennungen zuverlässiger',
+      'Eine hochwertige, aber einmalige Erkennung wird jetzt differenzierter behandelt (nicht pauschal „prüfen"); die Einschätzung ist im Tooltip nachvollziehbar aufgeschlüsselt',
+    ], en:[
+      'Reliability tiers now use a combined evidence score following Beseler et al. 2026 (Ecological Indicators): top-5% confidence combined with temporal coverage across logged days — separates true from false detections more reliably',
+      'A high-quality but single-day detection is now handled more precisely (not automatically "verify"); the assessment is broken down in the tooltip',
+    ]},
   { v:'0.24.1', date:'2026-08-16', de:[
       'Verlauf komplett überarbeitet: Sessions sind jetzt eingeklappt mit Kurzüberblick (Arten · Erkennungen), Details per Klick — die Muster-Ansicht ist auf Mobil dadurch rund 40% kürzer',
       'Tab „Karte & Zonen" bekommt echten Inhalt: „Zonen im Vergleich" zeigt Sessions/Tage/Arten je Zone — ehrlich als reine Zählung, mit Hinweis, wenn eine Zone für einen echten Vergleich noch zu wenig Daten hat',
@@ -3305,7 +3372,7 @@ const GUIDE_CONTENT = {
     <h4>Bestimmungs-Check</h4>
     <p>Jede Art in der Übersicht wird dreifach eingeordnet:</p>
     <ul>
-      <li><b>Verlässlichkeit</b> — <code>belastbar</code>, <code>wahrscheinlich</code> oder <code>prüfen</code>, abgeleitet aus BirdNET-Konfidenz, Anzahl Detektionen und Sessions. Es geht darum, wie sicher die Tonerkennung ist — nicht um die Anzahl der Vögel.</li>
+      <li><b>Verlässlichkeit</b> — <code>belastbar</code>, <code>wahrscheinlich</code> oder <code>prüfen</code>. Grundlage ist ein kombinierter Evidenz-Wert nach <em>Beseler et al. 2026</em> (Ecological Indicators): das Mittel der besten 5 % Konfidenzwerte einer Art, kombiniert mit der zeitlichen Abdeckung (an wie vielen erfassten Tagen die Art auftaucht). Hohe Qualität <em>und</em> wiederholtes Auftreten über Tage trennen echte von falschen Erkennungen am besten. Absolute Schwellen aus der Studie werden bewusst nicht übernommen (sie sind auf deren Geräte/Region abgestimmt) — nur die Methode. Es geht um die Sicherheit der Tonerkennung, nicht um die Anzahl der Vögel.</li>
       <li><b>Habitat</b> — mit <code>prüfen</code> markierte Arten werden zusätzlich gegen die Landbedeckung am Aufnahmeort geprüft: <code>plausibel</code>, wenn der passende Lebensraum in der Nähe liegt, <code>unplausibel</code>, wenn Nötiges fehlt (ein Fichtenkreuzschnabel braucht Nadelwald). Das <code>?</code> heißt, die Landbedeckung ist bisher nur geschätzt.</li>
       <li><b>Überprüfung</b> — eine Art anklicken und die Bestimmung nach Anhören des Clips <code>Bestätigen</code> oder <code>Verwerfen</code>. Deine Entscheidung überschreibt die automatischen Flags: bestätigt zeigt ein ✓, verworfen streicht die Art aus der Liste.</li>
     </ul>
@@ -3338,7 +3405,7 @@ const GUIDE_CONTENT = {
     <h4>How the ID check works</h4>
     <p>Every species in the overview gets sorted three ways:</p>
     <ul>
-      <li><b>Reliability</b> — <code>solid</code>, <code>probable</code>, or <code>verify</code>, from BirdNET confidence, number of detections, and number of sessions. It's about how trustworthy the sound match is, not how many birds there are.</li>
+      <li><b>Reliability</b> — <code>solid</code>, <code>probable</code>, or <code>verify</code>. Based on a combined evidence score following <em>Beseler et al. 2026</em> (Ecological Indicators): the mean of a species' top 5% confidence scores, combined with its temporal coverage (how many logged days it appears on). High quality <em>and</em> recurrence across days best separate true from false detections. The study's absolute thresholds are deliberately not copied (they're tuned to its recorders/region) — only the method is. It's about how trustworthy the sound match is, not how many birds there are.</li>
       <li><b>Habitat</b> — species flagged <code>verify</code> are also checked against the land cover around the recorder: <code>plausible</code> if their habitat is present nearby, <code>strike</code> if they need something that isn't there (a Crossbill needs conifer). The <code>?</code> means the land cover is still a provisional estimate.</li>
       <li><b>Verification</b> — open any species and <code>Confirm</code> or <code>Reject</code> the ID after checking the clip. Your call overrides the automatic flags: confirmed shows a settled ✓, rejected strikes it from the list.</li>
     </ul>
@@ -4753,6 +4820,7 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
   });
   let rows = Object.entries(agg);
   const overviewLoggedDays = new Set(entries.map(e=>e.date)).size;
+  TOTAL_LOGGED_DAYS = overviewLoggedDays;   // feeds combinedEvidence() temporal coverage
   if(mode === 'name'){
     rows.sort((a,b)=> speciesLabel(a[0]).localeCompare(speciesLabel(b[0])));
   } else if(mode === 'recent'){
