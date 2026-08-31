@@ -1214,7 +1214,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.25.1';
+const APP_VERSION = '0.25.2';
 const APP_VERSION_DATE = '2026-08-16';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -2497,13 +2497,42 @@ const fileSync = {
 //      since it structurally resembles third-party tracking — regardless of
 //      the destination being Wikipedia. A real fetch() with CORS doesn't
 //      trigger that heuristic.
+// Concurrency-limited queue for Wikipedia fetches. With ~50+ species in the
+// overview plus the top-residents cards, every one used to fire fetch()
+// simultaneously the moment the page rendered — up to 50+ parallel requests
+// to the same host. Browsers cap simultaneous connections per host, so many
+// of those requests sat queued and some ran past the 5s timeout before a
+// connection ever opened; which ones failed was effectively random each load
+// — this is why images appeared inconsistently ("sometimes a few show, some-
+// times not"), not because of a structural block. Routing every request
+// through a small queue (max 4 in flight) fixes that: nothing times out
+// waiting for a free connection, and it's gentler on Wikipedia's API too.
+function makeQueue(limit){
+  let active = 0;
+  const pending = [];
+  function runNext(){
+    if(active >= limit || pending.length === 0) return;
+    active++;
+    const {fn, resolve, reject} = pending.shift();
+    fn().then(resolve, reject).finally(()=>{ active--; runNext(); });
+  }
+  return function enqueue(fn){
+    return new Promise((resolve, reject)=>{
+      pending.push({fn, resolve, reject});
+      runNext();
+    });
+  };
+}
+const wikiQueue = makeQueue(4);
+
 async function wikiApiFetch(name, extraParams){
+  return wikiQueue(async ()=>{
   const key = name.trim().toLowerCase();
   const url = 'https://de.wikipedia.org/w/api.php?action=query&titles=' +
     encodeURIComponent(wikiTitle(name.trim())) +
     '&redirects=1&format=json&origin=*' + extraParams;
   const controller = new AbortController();
-  const timeout = setTimeout(()=>controller.abort(), 5000);
+  const timeout = setTimeout(()=>controller.abort(), 8000);
   try{
     const res = await fetch(url, {signal: controller.signal});
     clearTimeout(timeout);
@@ -2517,6 +2546,7 @@ async function wikiApiFetch(name, extraParams){
     clearTimeout(timeout);
     return null;   // network error, abort, or bad JSON — same graceful fallback as before
   }
+  });
 }
 
 async function getSpeciesImage(name){
@@ -2525,8 +2555,8 @@ async function getSpeciesImage(name){
   if(key in speciesImageCache) return speciesImageCache[key];
   const page = await wikiApiFetch(name, '&prop=pageimages&pithumbsize=120');
   const url = (page && page.thumbnail && page.thumbnail.source) || null;
-  speciesImageCache[key] = url;
-  return url;
+  if(url) speciesImageCache[key] = url;   // only cache success — a transient
+  return url;                             // failure can retry next time it's opened
 }
 
 async function getSpeciesInfo(name){
@@ -2539,7 +2569,7 @@ async function getSpeciesInfo(name){
     extract: page.extract || null,
     url: 'https://de.wikipedia.org/wiki/' + encodeURIComponent(wikiTitle(name.trim()))
   } : null;
-  speciesInfoCache[key] = info;
+  if(info) speciesInfoCache[key] = info;  // only cache success, same reasoning
   return info;
 }
 
@@ -3074,6 +3104,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.25.2', date:'2026-08-16', de:[
+      'Vogelbilder luden bisher unzuverlässig (mal ein paar da, mal nicht): beim Laden feuerten bis zu 50+ gleichzeitige Wikipedia-Anfragen los, viele liefen in den Timeout, bevor eine Verbindung frei wurde',
+      'Behoben: alle Bild-/Info-Anfragen laufen jetzt durch eine Warteschlange (max. 4 gleichzeitig) — schont Wikipedias API und lädt zuverlässig. Ein einzelner Netzwerk-Hänger sperrt eine Art jetzt auch nicht mehr dauerhaft für die Sitzung.',
+    ], en:[
+      'Bird photos loaded unreliably (sometimes a few, sometimes none): loading fired up to 50+ simultaneous Wikipedia requests, many timing out before a connection freed up',
+      'Fixed: all image/info requests now go through a queue (max 4 at once) — easier on Wikipedia\'s API and loads reliably. A single network hiccup also no longer permanently blocks a species for the rest of the session.',
+    ]},
   { v:'0.25.1', date:'2026-08-16', de:[
       'Neuer Bereich „Deine Stammgäste" (unter Neu & Übersicht): die fünf an den meisten Tagen präsenten Arten mit größerem Bild, Status und Verlässlichkeit — Auswahl nach Persistenz (Tage gesehen), nicht nach Erkennungszahl',
     ], en:[
