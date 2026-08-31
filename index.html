@@ -490,6 +490,19 @@
   .sig-nohab{font-size:12px; color:var(--text-dim); line-height:1.5;}
   .sig-caveat{font-size:12px; color:var(--text-dim); margin-top:16px; line-height:1.5; padding-top:12px; border-top:1px solid var(--border);}
   .panel-intro{font-size:13px; color:var(--text-dim); margin-bottom:16px; line-height:1.5;}
+  /* Top residents */
+  .tr-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px;}
+  .tr-card{background:var(--bg-elev); border-radius:12px; overflow:hidden; border:1px solid var(--border);}
+  .tr-photo{width:100%; aspect-ratio:4/3; background:var(--bg-panel); display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .tr-photo img{width:100%; height:100%; object-fit:cover; display:block;}
+  .tr-photo-ph{font-size:34px; opacity:.35;}
+  .tr-body{padding:11px 12px 13px;}
+  .tr-name{font-size:15px; font-weight:700; line-height:1.2;}
+  .tr-name .sp-name-link{color:var(--heading); cursor:pointer;}
+  .tr-name .sp-name-link:hover{color:var(--accent); text-decoration:underline;}
+  .tr-meta{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;}
+  .tr-days{font-size:12px; color:var(--text-dim); margin-top:8px;}
+  @media (max-width:480px){ .tr-grid{grid-template-columns:1fr 1fr;} .tr-name{font-size:14px;} }
   /* Ecological Evidence module */
   .ev-scope-toggle{display:inline-flex; gap:2px; background:var(--bg-elev); border-radius:8px; padding:3px; margin-bottom:18px;}
   .ev-scope-btn{border:none; background:none; padding:7px 14px; font-size:12px; font-weight:600; color:var(--text-dim); border-radius:6px; cursor:pointer; font-family:inherit;}
@@ -1019,6 +1032,20 @@
     </div>
   </div>
 
+  <div class="panel" id="topResidentsPanel" data-home="overview" style="display:none;">
+    <h2>
+      <button type="button" class="collapsible-header" onclick="togglePanel('topResidentsBody')"
+              aria-expanded="true" aria-controls="topResidentsBody">
+        <span data-i18n="panelTopResidentsTitle">Deine Stammgäste</span>
+        <span class="chevron" id="topResidentsBody-chevron">▾</span>
+      </button>
+    </h2>
+    <div id="topResidentsBody">
+      <div class="panel-intro" data-i18n="topResidentsIntro">Die Arten, die an den meisten erfassten Tagen präsent waren — die verlässlichsten Bewohner deines Gartens.</div>
+      <div id="topResidentsContent"></div>
+    </div>
+  </div>
+
   <div class="panel" data-home="overview">
     <h2>
       <button type="button" class="collapsible-header" onclick="togglePanel('speciesOverviewBody')"
@@ -1187,7 +1214,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.25.0';
+const APP_VERSION = '0.25.1';
 const APP_VERSION_DATE = '2026-08-16';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -2078,6 +2105,9 @@ const I18N = {
   sigNoHabitat:{de:"Für die erfassten Arten liegt keine regionale Lebensraum-Zuordnung vor (diese ist derzeit auf mitteleuropäische Arten ausgelegt).", en:"No regional habitat association available for the logged species (this is currently tuned to Central-European species)."},
   sigCaveat:{de:"Gewichtet nach Tagen gesehen ({n} von {total} Arten klassifiziert). Dies beschreibt die Zusammensetzung an DEINEM Standort — es ist kein statistischer Indikatorart-Nachweis. Dafür bräuchte es viele Standorte zum Vergleich (IndVal-Methode). Guten Gewissens sagbar: „passt zu“, nicht „beweist“.", en:"Weighted by days seen ({n} of {total} species classified). This describes composition at YOUR site — it is not a statistical indicator-species proof. That would require many sites to compare against (the IndVal method). Honestly sayable: “consistent with”, not “proves”."},
   panelArrivalsTitle:{de:"Neu & bemerkenswert", en:"New & notable"},
+  panelTopResidentsTitle:{de:"Deine Stammgäste", en:"Your regulars"},
+  topResidentsIntro:{de:"Die Arten, die an den meisten erfassten Tagen präsent waren — die verlässlichsten Bewohner deines Gartens.", en:"The species present on the most logged days — your garden's most consistent residents."},
+  trDaysLine:{de:"an {d} von {total} Tagen", en:"on {d} of {total} days"},
   arrivalsRecentHeading:{de:"Zuletzt neu im Garten", en:"Recently new to the garden"},
   arrivalNewest:{de:"neu heute", en:"new today"},
   resResidents:{de:"Stammgäste", en:"regulars"},
@@ -3044,6 +3074,11 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.25.1', date:'2026-08-16', de:[
+      'Neuer Bereich „Deine Stammgäste" (unter Neu & Übersicht): die fünf an den meisten Tagen präsenten Arten mit größerem Bild, Status und Verlässlichkeit — Auswahl nach Persistenz (Tage gesehen), nicht nach Erkennungszahl',
+    ], en:[
+      'New "Your regulars" section (under New & overview): the five species present on the most days, shown larger with photo, status and reliability — ranked by persistence (days seen), not detection count',
+    ]},
   { v:'0.25.0', date:'2026-08-16', de:[
       'Verlässlichkeits-Einstufung nutzt jetzt einen kombinierten Evidenz-Wert nach Beseler et al. 2026 (Ecological Indicators): beste-5%-Konfidenz kombiniert mit zeitlicher Abdeckung über erfasste Tage — trennt echte von falschen Erkennungen zuverlässiger',
       'Eine hochwertige, aber einmalige Erkennung wird jetzt differenzierter behandelt (nicht pauschal „prüfen"); die Einschätzung ist im Tooltip nachvollziehbar aufgeschlüsselt',
@@ -4738,6 +4773,67 @@ function buildSpeciesStats(entries){
 // A species is a "new arrival" if its first-ever appearance falls within the
 // recent window — measured in LOGGED days, not calendar days, so a week of
 // not recording doesn't make everything look new when logging resumes.
+// Top residents — the species present on the most logged days (persistence,
+// NOT detection count, which would just reflect vocal loudness). These are the
+// garden's actual regulars, so they get more visual weight: larger photo, name
+// as a link into the species modal, and a couple of honest detail lines. Only
+// shown once there's enough data for "most persistent" to mean something.
+async function renderTopResidents(entries){
+  const panel = document.getElementById('topResidentsPanel');
+  if(!panel) return;
+  const content = document.getElementById('topResidentsContent');
+  const birdEntries = entries.filter(e => (e.type || 'bird') === 'bird');
+  if(birdEntries.length === 0){ panel.style.display = 'none'; return; }
+
+  const {agg, totalLoggedDays} = buildSpeciesStats(birdEntries);
+  if(totalLoggedDays < 4){ panel.style.display = 'none'; return; }  // too thin to rank
+
+  // rank by distinct days seen (persistence); tie-break by first-seen (older = more established)
+  const ranked = Object.entries(agg)
+    .filter(([, d]) => speciesResidency(d.days.size, totalLoggedDays) === 'resident')
+    .sort((a,b)=> b[1].days.size - a[1].days.size || a[1].first.localeCompare(b[1].first))
+    .slice(0, 5);
+
+  if(ranked.length === 0){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  // build confidence/session data per species for the reliability line, from
+  // the same detections the overview uses
+  const detData = {};
+  birdEntries.forEach(e=>{
+    (e.species||[]).forEach(s=>{
+      const nm = s.species || s.name;
+      if(!detData[nm]) detData[nm] = {confidences:[], sessions:new Set(), days:new Set()};
+      detData[nm].sessions.add(e.id || (e.date + (e.time||'')));
+      detData[nm].days.add(e.date);
+      if(s.detections) s.detections.forEach(x=>detData[nm].confidences.push(x.c));
+    });
+  });
+
+  content.innerHTML = `<div class="tr-grid">` + ranked.map(([name, d])=>{
+    const rel = reliabilityBadgeHTML(detData[name] || {});
+    const daysLine = t('trDaysLine').replace('{d}', d.days.size).replace('{total}', totalLoggedDays);
+    const status = statusBadgeHTML(name);
+    return `<div class="tr-card">
+      <div class="tr-photo" id="tr-photo-${encodeURIComponent(name)}"><span class="tr-photo-ph">🐦</span></div>
+      <div class="tr-body">
+        <div class="tr-name"><span class="sp-name-link" onclick='openSpeciesModal(${JSON.stringify(name)}, {days:${d.days.size}, total:0, last:${JSON.stringify(d.last)}, avgConf:null})'>${speciesLabel(name)}</span></div>
+        <div class="tr-meta">${status}${rel}</div>
+        <div class="tr-days">${daysLine}</div>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+
+  // lazy-load the larger photos (same fetch path as the overview thumbnails)
+  ranked.forEach(([name])=>{
+    getSpeciesImage(name).then(url=>{
+      if(!url) return;
+      const box = document.getElementById('tr-photo-' + encodeURIComponent(name));
+      if(box) box.innerHTML = `<img src="${url}" alt="" loading="lazy">`;
+    }).catch(()=>{});
+  });
+}
+
 function renderArrivals(entries){
   const panel = document.getElementById('arrivalsPanel');
   const content = document.getElementById('arrivalsContent');
@@ -4902,6 +4998,7 @@ async function renderAll(){
   try{ renderCalendar(entries); }catch(err){ console.error('renderCalendar failed', err); }
   try{ renderClock(entries); }catch(err){ console.error('renderClock failed', err); }
   try{ renderArrivals(entries); }catch(err){ console.error('renderArrivals failed', err); }
+  try{ renderTopResidents(entries); }catch(err){ console.error('renderTopResidents failed', err); }
   try{ renderSignature(entries); }catch(err){ console.error('renderSignature failed', err); }
   try{ renderCompleteness(entries); }catch(err){ console.error('renderCompleteness failed', err); }
   try{ renderEvidence(); }catch(err){ console.error('renderEvidence failed', err); }
