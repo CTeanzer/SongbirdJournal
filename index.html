@@ -1242,7 +1242,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.28.2';
+const APP_VERSION = '0.28.3';
 const APP_VERSION_DATE = '2026-09-02';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -2064,6 +2064,7 @@ const I18N = {
   weatherBackfill:  {de:"Wetter für bestehende Aufnahmen nachladen", en:"Backfill weather for existing recordings"},
   weatherWorking:   {de:"Lädt…", en:"Loading…"},
   weatherDone:      {de:"{n} Aufnahmen ergänzt, {f} nicht abrufbar", en:"{n} recordings updated, {f} unavailable"},
+  weatherAllFailedHint: {de:"Open-Meteo antwortet gerade nicht — Status prüfen: status.open-meteo.com. Später erneut versuchen.", en:"Open-Meteo isn't responding right now — check status: status.open-meteo.com. Try again later."},
   weatherOffToast:  {de:"Bitte zuerst die Wetterabfrage aktivieren", en:"Please enable weather fetching first"},
   wxAtRecording:    {de:"Zur Aufnahmezeit", en:"At recording time"},
   wxDay:            {de:"Tag gesamt", en:"Day overall"},
@@ -3168,6 +3169,13 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.28.3', date:'2026-09-02', de:[
+      'Wetter-Abruf nutzt jetzt Open-Meteos „Historical Forecast API" statt der Archiv-API — letztere hatte dokumentierte Verbindungsprobleme und ließ Wetterdaten bei manchen Nutzern komplett leer bleiben',
+      'Beim vollständigen Fehlschlag des Wetter-Nachladens erscheint jetzt ein Hinweis auf die Open-Meteo-Statusseite',
+    ], en:[
+      'Weather fetching now uses Open-Meteo\'s "Historical Forecast API" instead of the Archive API — the latter had documented connection issues that could leave weather data empty for some users',
+      'A complete weather-backfill failure now shows a hint pointing to the Open-Meteo status page',
+    ]},
   { v:'0.28.2', date:'2026-09-02', de:[
       'BirdNET-Analyzer-Importe schließen jetzt Nicht-Vogel-Klassen aus (Mensch Stimme, Feuerwerk, Siren, Motor, Wolf u. ä.) — das neuere BirdNET+-Modell erkennt auch Umgebungsgeräusche und andere Tierarten, die nie als Vogelart importiert werden sollen',
       'Import-Meldung nennt jetzt explizit, wie viele Nicht-Vogel-Erkennungen ausgeschlossen wurden',
@@ -4396,7 +4404,14 @@ async function fetchWeatherFor(date, time){
   if(!date) return null;
   const lat = coarseCoord(center.lat), lon = coarseCoord(center.lng);
   const hour = parseInt((time || '12:00').split(':')[0], 10) || 12;
-  const url = 'https://archive-api.open-meteo.com/v1/archive'
+  // Historical Forecast API, not the ERA5 Archive API: same parameters/
+  // response shape, but built from actual model-run data ("closely tracks
+  // actual conditions") on separate infrastructure. The archive-api subdomain
+  // has documented connection-timeout issues (open-meteo/open-meteo#1410);
+  // this endpoint is Open-Meteo's own recommendation for "the most accurate
+  // representation of past conditions over the last few years" — exactly
+  // this app's use case (weeks/months back, not decades).
+  const url = 'https://historical-forecast-api.open-meteo.com/v1/forecast'
     + `?latitude=${lat}&longitude=${lon}`
     + `&start_date=${date}&end_date=${date}`
     + '&hourly=temperature_2m,precipitation,wind_speed_10m,weather_code'
@@ -4497,7 +4512,9 @@ async function backfillWeather(){
     if(typeof fileSync !== 'undefined' && fileSync.scheduleWrite) fileSync.scheduleWrite();
   }catch(err){ console.error('weather backfill save failed', err); }
   if(btn){ btn.disabled = false; btn.textContent = t('weatherBackfill'); }
-  showToast(t('weatherDone').replace('{n}', done).replace('{f}', failed));
+  let msg = t('weatherDone').replace('{n}', done).replace('{f}', failed);
+  if(done === 0 && failed > 0) msg += ' ' + t('weatherAllFailedHint');
+  showToast(msg);
   renderAll();
 }
 // ── Weather (end) ────────────────────────────────────────────────────────
