@@ -1242,7 +1242,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.28.3';
+const APP_VERSION = '0.28.5';
 const APP_VERSION_DATE = '2026-09-02';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -2583,10 +2583,18 @@ function makeQueue(limit){
     });
   };
 }
-const wikiQueue = makeQueue(4);
+// Concurrency alone isn't enough against Wikipedia's rate limiting — a burst
+// of even 4-at-a-time requests across 50+ species (a full overview render)
+// can trigger a 429. When that happens, the right response is to briefly
+// stop sending anything, not to keep firing at the same rate. This tracks a
+// shared "don't send before this time" gate that every queued request checks.
+let wikiBackoffUntil = 0;
+const wikiQueue = makeQueue(3);
 
 async function wikiApiFetch(name, extraParams){
   return wikiQueue(async ()=>{
+  const wait = wikiBackoffUntil - Date.now();
+  if(wait > 0) await new Promise(r=>setTimeout(r, wait));
   const key = name.trim().toLowerCase();
   const url = 'https://de.wikipedia.org/w/api.php?action=query&titles=' +
     encodeURIComponent(wikiTitle(name.trim())) +
@@ -2596,6 +2604,14 @@ async function wikiApiFetch(name, extraParams){
   try{
     const res = await fetch(url, {signal: controller.signal});
     clearTimeout(timeout);
+    if(res.status === 429){
+      // honour Retry-After if Wikipedia sent one, otherwise back off a fixed
+      // stretch — this pauses every OTHER queued request too, since they all
+      // check the same shared gate before sending
+      const retryAfter = parseInt(res.headers.get('Retry-After') || '', 10);
+      wikiBackoffUntil = Date.now() + (retryAfter > 0 ? retryAfter*1000 : 6000);
+      return null;
+    }
     if(!res.ok) return null;
     const data = await res.json();
     const pages = data.query && data.query.pages;
@@ -3169,6 +3185,22 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.28.5', date:'2026-09-02', de:[
+      'Die eigentliche Ursache des Wetter-Problems gefunden: ein beschädigter gespeicherter Standort-Datensatz führte zu ungültigen Koordinaten (NaN), die Open-Meteo zurecht mit „400 Bad Request" ablehnte — keine der beiden vorherigen Vermutungen (Archiv-API, CORS) war die Ursache',
+      'Gespeicherte Koordinaten werden beim Laden jetzt geprüft; ungültige Datensätze führen nicht mehr zu kaputten Anfragen, sondern zum neutralen Standard-Standort',
+      'Wetter-Abruf hat zusätzlich eine eigene Absicherung: ungültige Koordinaten werden dort ebenfalls abgefangen, unabhängig von der Ursache',
+    ], en:[
+      'Found the actual cause of the weather issue: a corrupted stored location record produced invalid coordinates (NaN), which Open-Meteo correctly rejected with "400 Bad Request" — neither of the two earlier suspects (archive API, CORS) was the cause',
+      'Stored coordinates are now validated on load; an invalid record no longer produces broken requests, falling back to the neutral default location instead',
+      'Weather fetching has its own additional safeguard: invalid coordinates are caught there too, regardless of cause',
+    ]},
+  { v:'0.28.4', date:'2026-09-02', de:[
+      'Wikipedia-Bildabrufe: wenn Wikipedia mit „429 Too Many Requests" antwortet, pausiert die App jetzt kurz, statt unverändert weiter anzufragen — verhindert, dass sich die Sperre durch weiteres Hämmern verschärft',
+      'Anzahl gleichzeitiger Bildabrufe leicht reduziert (4 auf 3)',
+    ], en:[
+      'Wikipedia image fetches: when Wikipedia responds with "429 Too Many Requests", the app now briefly pauses instead of continuing to hammer it — prevents the block from getting worse',
+      'Slightly reduced simultaneous image fetches (4 to 3)',
+    ]},
   { v:'0.28.3', date:'2026-09-02', de:[
       'Wetter-Abruf nutzt jetzt Open-Meteos „Historical Forecast API" statt der Archiv-API — letztere hatte dokumentierte Verbindungsprobleme und ließ Wetterdaten bei manchen Nutzern komplett leer bleiben',
       'Beim vollständigen Fehlschlag des Wetter-Nachladens erscheint jetzt ein Hinweis auf die Open-Meteo-Statusseite',
@@ -3813,14 +3845,26 @@ async function loadSettings(){
     const res = await db.get('map-settings');
     if(res && res.value){
       const s = JSON.parse(res.value);
-      center = {lat:s.lat, lng:s.lng};
-      locationSet = true;   // user has real saved coordinates
-      marker.setLatLng([s.lat, s.lng]);
-      circleA.setLatLng([s.lat, s.lng]).setRadius(s.radiusA);
+      // Only accept stored coordinates that are actually finite numbers — a
+      // stale or partially-written settings record (e.g. from an older
+      // version of the app) could otherwise silently poison `center` with
+      // NaN/undefined, which then surfaces far away as a mysterious 400 from
+      // Open-Meteo with no obvious connection back to this. If Zone A's own
+      // coordinates are invalid, don't claim a real location is set either —
+      // that would also be wrong for the location-dependent range checks.
+      const validLat = Number.isFinite(s.lat), validLng = Number.isFinite(s.lng);
+      if(validLat && validLng){
+        center = {lat:s.lat, lng:s.lng};
+        locationSet = true;   // user has real saved coordinates
+      } else {
+        console.warn('stored map-settings had invalid Zone A coordinates — keeping the neutral default', s);
+      }
+      marker.setLatLng([center.lat, center.lng]);
+      circleA.setLatLng([center.lat, center.lng]).setRadius(s.radiusA);
       // Settings saved before Zone B had its own location won't have
       // latB/lngB — fall back to the current default rather than silently
-      // collapsing Zone B back onto Zone A's point.
-      if(s.latB != null && s.lngB != null){
+      // collapsing Zone B back onto Zone A's point. Same validity guard.
+      if(Number.isFinite(s.latB) && Number.isFinite(s.lngB)){
         centerB = {lat:s.latB, lng:s.lngB};
       }
       markerB.setLatLng([centerB.lat, centerB.lng]);
@@ -4371,7 +4415,15 @@ function setWeatherEnabled(on){
   const btn = document.getElementById('weatherBackfillBtn');
   if(btn) btn.style.display = on ? '' : 'none';
 }
-function coarseCoord(v){ return Math.round(v * 10) / 10; }   // ~11 km grid
+// Guards against ever sending a malformed coordinate to Open-Meteo. If v
+// isn't a finite number (undefined/null/NaN — e.g. from a stale or partial
+// settings record), fall back to NEUTRAL_CENTER rather than letting NaN
+// silently reach the URL, where the API would reject every single request
+// with 400 Bad Request and the failure would look identical to a real outage.
+function coarseCoord(v, fallback){
+  const n = Math.round(v * 10) / 10;
+  return Number.isFinite(n) ? n : fallback;
+}
 
 // WMO weather codes → short human label (the API returns a numeric code)
 const WMO_CODE = {
@@ -4402,7 +4454,7 @@ function wmoLabel(code){
 //     collapsed views where a full readout would be noise
 async function fetchWeatherFor(date, time){
   if(!date) return null;
-  const lat = coarseCoord(center.lat), lon = coarseCoord(center.lng);
+  const lat = coarseCoord(center.lat, NEUTRAL_CENTER.lat), lon = coarseCoord(center.lng, NEUTRAL_CENTER.lng);
   const hour = parseInt((time || '12:00').split(':')[0], 10) || 12;
   // Historical Forecast API, not the ERA5 Archive API: same parameters/
   // response shape, but built from actual model-run data ("closely tracks
