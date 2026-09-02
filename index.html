@@ -385,7 +385,8 @@
   .entry-card.expanded .entry-detail{display:block;}
   .entry-species{color:var(--text-dim); font-size:12px; line-height:1.6;}
   .entry-notes{color:var(--text-dim); font-size:12px; font-style:italic; margin-top:6px; padding-top:6px; border-top:1px solid var(--border);}
-  .entry-weather{color:var(--text-dim); font-size:12px; margin-top:6px;}
+  .entry-weather{color:var(--text-dim); font-size:12px; margin-top:6px; line-height:1.6;}
+  .entry-glyph{font-size:14px; flex-shrink:0; line-height:1;}
   .weather-setting{margin-top:16px; padding-top:14px; border-top:1px solid var(--border);}
   .weather-row{display:flex; align-items:center; gap:9px; font-size:13px; cursor:pointer;}
   .weather-row input{width:16px; height:16px; cursor:pointer;}
@@ -1227,7 +1228,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.26.0';
+const APP_VERSION = '0.26.1';
 const APP_VERSION_DATE = '2026-08-18';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -2047,6 +2048,8 @@ const I18N = {
   weatherWorking:   {de:"Lädt…", en:"Loading…"},
   weatherDone:      {de:"{n} Aufnahmen ergänzt, {f} nicht abrufbar", en:"{n} recordings updated, {f} unavailable"},
   weatherOffToast:  {de:"Bitte zuerst die Wetterabfrage aktivieren", en:"Please enable weather fetching first"},
+  wxAtRecording:    {de:"Zur Aufnahmezeit", en:"At recording time"},
+  wxDay:            {de:"Tag gesamt", en:"Day overall"},
   locateBtnA:       {de:"Standort: Zone A verwenden", en:"Use my location: Zone A"},
   locateBtnB:       {de:"Standort: Zone B verwenden", en:"Use my location: Zone B"},
   locateLoading:    {de:"Suche Standort…", en:"Locating…"},
@@ -2734,9 +2737,11 @@ function localDateKey(d){
 
 function renderCalendar(entries){
   const byDate = {};
+  const wxByDate = {};   // day-level weather per date, for the tooltip
   entries.forEach(e=>{
     if(!byDate[e.date]) byDate[e.date] = new Set();
     (Array.isArray(e.species)?e.species:[]).forEach(s=>byDate[e.date].add(s.name));
+    if(e.weather && e.weather.day && !wxByDate[e.date]) wxByDate[e.date] = e.weather;
   });
 
   const today = new Date();
@@ -2768,9 +2773,12 @@ function renderCalendar(entries){
 
   // Grid + weekday labels
   const grid = document.getElementById('calendarGrid');
-  grid.innerHTML = days.map(d=>
-    `<div class="cal-cell" data-level="${d.level}" title="${d.key}: ${d.count} ${lang==='de' ? 'Arten' : 'species'}"></div>`
-  ).join('');
+  grid.innerHTML = days.map(d=>{
+    const wx = wxByDate[d.key];
+    const wxPart = wx ? ` · ${weatherGlyph(wx.day.code)} ${weatherDaySummary(wx)}` : '';
+    const tip = `${d.key}: ${d.count} ${lang==='de' ? 'Arten' : 'species'}${wxPart}`;
+    return `<div class="cal-cell" data-level="${d.level}" title="${tip.replace(/"/g,'&quot;')}"></div>`;
+  }).join('');
 
   const weekdayLabels = document.getElementById('calWeekdayLabels');
   const wdNames = lang === 'de' ? ['Mo','','Mi','','Fr','',''] : ['Mon','','Wed','','Fri','',''];
@@ -3123,6 +3131,15 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.26.1', date:'2026-08-18', de:[
+      'Wetter jetzt auf zwei Ebenen: Tageswetter als Symbol direkt in der zugeklappten Verlaufszeile (auf einen Blick Regen- oder Sonnentag), Bedingungen zur Aufnahmezeit im Detail',
+      'Tageswetter erscheint zusätzlich im Tooltip des Aufnahme-Kalenders',
+      'Beide Ebenen kommen aus einer Abfrage. Wer bereits Wetter geladen hatte: einmal erneut nachladen, dann sind die Tageswerte ergänzt.',
+    ], en:[
+      'Weather now at two levels: daily conditions as an icon right in the collapsed history row (rainy or sunny day at a glance), conditions at recording time in the detail view',
+      'Daily weather also appears in the recording calendar tooltip',
+      'Both levels come from a single request. If you already fetched weather: run the backfill once more to add the daily values.',
+    ]},
   { v:'0.26.0', date:'2026-08-18', de:[
       'Optionaler Wetter-Kontext je Aufnahme (Open-Meteo): Temperatur, Wind und Bedingungen werden beim Speichern mitgeholt — Regen und Wind dämpfen die Rufaktivität stark, das macht eine niedrige Artenzahl erklärbar statt nur auffällig',
       'Datenschutz: die Koordinaten werden vor der Abfrage auf rund 11 km gerundet — das Wetter ist dasselbe, der genaue Standort wird nie übertragen. Standardmäßig aus, muss aktiv eingeschaltet werden.',
@@ -3984,6 +4001,11 @@ function wmoLabel(code){
 
 // Fetch weather for one entry's date+time. Returns null on any failure —
 // weather is a nice-to-have, never load-bearing.
+// Two levels, in ONE request:
+//   • hourly at the session's hour — the ecologically relevant value, since
+//     wind/rain during those minutes is what suppresses vocal activity
+//   • daily summary — the at-a-glance "was it a rainy day", used in the
+//     collapsed views where a full readout would be noise
 async function fetchWeatherFor(date, time){
   if(!date) return null;
   const lat = coarseCoord(center.lat), lon = coarseCoord(center.lng);
@@ -3992,6 +4014,7 @@ async function fetchWeatherFor(date, time){
     + `?latitude=${lat}&longitude=${lon}`
     + `&start_date=${date}&end_date=${date}`
     + '&hourly=temperature_2m,precipitation,wind_speed_10m,weather_code'
+    + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max'
     + '&timezone=auto';
   try{
     const controller = new AbortController();
@@ -4006,15 +4029,54 @@ async function fetchWeatherFor(date, time){
     let idx = h.time.findIndex(t => parseInt(t.split('T')[1], 10) === hour);
     if(idx < 0) idx = Math.min(hour, h.time.length - 1);
     if(idx < 0) return null;
+    const d = data.daily || {};
+    const pick = (arr)=> (Array.isArray(arr) && arr.length) ? arr[0] : null;
     return {
       tempC: h.temperature_2m ? h.temperature_2m[idx] : null,
       precipMm: h.precipitation ? h.precipitation[idx] : null,
       windKmh: h.wind_speed_10m ? h.wind_speed_10m[idx] : null,
       code: h.weather_code ? h.weather_code[idx] : null,
+      day: {
+        code: pick(d.weather_code),
+        tMax: pick(d.temperature_2m_max),
+        tMin: pick(d.temperature_2m_min),
+        precipMm: pick(d.precipitation_sum),
+        windMaxKmh: pick(d.wind_speed_10m_max)
+      },
       source: 'open-meteo',
       grid: `${lat},${lon}`   // record the coarse cell actually queried
     };
   }catch(e){ return null; }
+}
+
+// Compact glyph for the day — for collapsed rows and dense views where a
+// full readout would be clutter. Derived from the WMO code group.
+function weatherGlyph(code){
+  if(code === null || code === undefined) return '';
+  if(code === 0) return '☀️';
+  if(code === 1 || code === 2) return '🌤️';
+  if(code === 3) return '☁️';
+  if(code === 45 || code === 48) return '🌫️';
+  if(code >= 51 && code <= 57) return '🌦️';
+  if(code >= 61 && code <= 67) return '🌧️';
+  if(code >= 71 && code <= 77) return '🌨️';
+  if(code >= 80 && code <= 82) return '🌦️';
+  if(code >= 85 && code <= 86) return '🌨️';
+  if(code >= 95) return '⛈️';
+  return '';
+}
+
+// One-line day summary: glyph + condition + min/max + rain if any.
+function weatherDaySummary(w){
+  if(!w || !w.day) return '';
+  const d = w.day;
+  const bits = [];
+  if(d.code !== null && d.code !== undefined) bits.push(wmoLabel(d.code));
+  if(d.tMin !== null && d.tMax !== null && d.tMin !== undefined && d.tMax !== undefined){
+    bits.push(`${Math.round(d.tMin)}–${Math.round(d.tMax)} °C`);
+  }
+  if(d.precipMm) bits.push(`${d.precipMm} mm`);
+  return bits.join(' · ');
 }
 
 function weatherSummary(w){
@@ -4036,7 +4098,9 @@ async function backfillWeather(){
   const btn = document.getElementById('weatherBackfillBtn');
   if(btn){ btn.disabled = true; btn.textContent = t('weatherWorking'); }
   let entries = await currentEntries();
-  const todo = entries.filter(e => !e.weather && e.date);
+  // entries with no weather at all, OR with weather from before daily values
+  // were added — both need a (re)fetch
+  const todo = entries.filter(e => e.date && (!e.weather || !e.weather.day));
   let done = 0, failed = 0;
   await Promise.all(todo.map(e => weatherQueue(async ()=>{
     const w = await fetchWeatherFor(e.date, e.time);
@@ -5232,11 +5296,15 @@ async function renderAll(){
         </div>
         <div class="entry-summary" onclick="toggleEntryDetail('${e.id}')">
           <span class="entry-summary-text">${summary}</span>
+          ${e.weather && e.weather.day ? `<span class="entry-glyph" title="${weatherDaySummary(e.weather).replace(/"/g,'&quot;')}">${weatherGlyph(e.weather.day.code)}</span>` : ''}
           <span class="entry-summary-chevron">▾</span>
         </div>
         <div class="entry-detail">
           <div class="entry-species">${sp.map(s=>`${speciesLabel(s.species||s.name)} ×${obsDetections(s)}${obsIndividuals(s)!==null?` (${obsIndividuals(s)} Ind.)`:``}`).join(' · ')}</div>
-          ${e.weather ? `<div class="entry-weather">🌤 ${weatherSummary(e.weather)}</div>` : ''}
+          ${e.weather ? `<div class="entry-weather">
+              <div><b>${t('wxAtRecording')}:</b> ${weatherSummary(e.weather)}</div>
+              ${e.weather.day ? `<div><b>${t('wxDay')}:</b> ${weatherDaySummary(e.weather)}</div>` : ''}
+            </div>` : ''}
           ${e.notes ? `<div class="entry-notes">${e.notes}</div>` : ''}
         </div>
       </div>`;
