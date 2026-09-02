@@ -385,6 +385,11 @@
   .entry-card.expanded .entry-detail{display:block;}
   .entry-species{color:var(--text-dim); font-size:12px; line-height:1.6;}
   .entry-notes{color:var(--text-dim); font-size:12px; font-style:italic; margin-top:6px; padding-top:6px; border-top:1px solid var(--border);}
+  .entry-weather{color:var(--text-dim); font-size:12px; margin-top:6px;}
+  .weather-setting{margin-top:16px; padding-top:14px; border-top:1px solid var(--border);}
+  .weather-row{display:flex; align-items:center; gap:9px; font-size:13px; cursor:pointer;}
+  .weather-row input{width:16px; height:16px; cursor:pointer;}
+  .weather-hint{font-size:11.5px; color:var(--text-dim); line-height:1.45; margin-top:7px;}
   .del-entry{background:none; border:none; color:var(--danger); cursor:pointer; font-size:11.5px; padding:3px 7px; border-radius:5px;}
   .del-entry:hover{background:var(--bg-elev);}
   .edit-entry{background:none; border:none; color:var(--accent); cursor:pointer; font-size:11.5px; padding:3px 7px; border-radius:5px;}
@@ -918,6 +923,14 @@
       </div>
     </div>
     <div style="font-size:12px; color:var(--text-dim); margin-top:10px;" data-i18n="dragHint">Marker ziehen, um den Aufnahmeort exakt zu platzieren.</div>
+    <div class="weather-setting">
+      <label class="weather-row">
+        <input type="checkbox" id="weatherToggle" onchange="setWeatherEnabled(this.checked)">
+        <span data-i18n="weatherEnable">Wetter automatisch zu jeder Aufnahme holen</span>
+      </label>
+      <div class="weather-hint" data-i18n="weatherHint">Holt Temperatur, Wind und Bedingungen von Open-Meteo. Deine Koordinaten werden dafür auf ~11 km gerundet übertragen — das Wetter ist dasselbe, dein genauer Standort bleibt privat. Standardmäßig aus.</div>
+      <button class="btn-secondary" id="weatherBackfillBtn" onclick="backfillWeather()" style="display:none; margin-top:10px;" data-i18n="weatherBackfill">Wetter für bestehende Aufnahmen nachladen</button>
+    </div>
     </div>
   </div>
 
@@ -1214,8 +1227,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.25.2';
-const APP_VERSION_DATE = '2026-08-16';
+const APP_VERSION = '0.26.0';
+const APP_VERSION_DATE = '2026-08-18';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -2028,6 +2041,12 @@ const I18N = {
   zoneATag:         {de:"Zone A · Garten", en:"Zone A · Garden"},
   zoneBTag:         {de:"Zone B · Feldrand", en:"Zone B · Field edge"},
   dragHint:         {de:"Marker ziehen, um den Aufnahmeort exakt zu platzieren.", en:"Drag the marker to place the recording spot precisely."},
+  weatherEnable:    {de:"Wetter automatisch zu jeder Aufnahme holen", en:"Fetch weather automatically for each recording"},
+  weatherHint:      {de:"Holt Temperatur, Wind und Bedingungen von Open-Meteo. Deine Koordinaten werden dafür auf ~11 km gerundet übertragen — das Wetter ist dasselbe, dein genauer Standort bleibt privat. Standardmäßig aus.", en:"Fetches temperature, wind and conditions from Open-Meteo. Your coordinates are rounded to ~11 km before being sent — the weather is the same, your exact location stays private. Off by default."},
+  weatherBackfill:  {de:"Wetter für bestehende Aufnahmen nachladen", en:"Backfill weather for existing recordings"},
+  weatherWorking:   {de:"Lädt…", en:"Loading…"},
+  weatherDone:      {de:"{n} Aufnahmen ergänzt, {f} nicht abrufbar", en:"{n} recordings updated, {f} unavailable"},
+  weatherOffToast:  {de:"Bitte zuerst die Wetterabfrage aktivieren", en:"Please enable weather fetching first"},
   locateBtnA:       {de:"Standort: Zone A verwenden", en:"Use my location: Zone A"},
   locateBtnB:       {de:"Standort: Zone B verwenden", en:"Use my location: Zone B"},
   locateLoading:    {de:"Suche Standort…", en:"Locating…"},
@@ -3104,6 +3123,15 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.26.0', date:'2026-08-18', de:[
+      'Optionaler Wetter-Kontext je Aufnahme (Open-Meteo): Temperatur, Wind und Bedingungen werden beim Speichern mitgeholt — Regen und Wind dämpfen die Rufaktivität stark, das macht eine niedrige Artenzahl erklärbar statt nur auffällig',
+      'Datenschutz: die Koordinaten werden vor der Abfrage auf rund 11 km gerundet — das Wetter ist dasselbe, der genaue Standort wird nie übertragen. Standardmäßig aus, muss aktiv eingeschaltet werden.',
+      'Bestehende Aufnahmen lassen sich per Knopfdruck nachträglich mit Wetterdaten ergänzen',
+    ], en:[
+      'Optional weather context per recording (Open-Meteo): temperature, wind and conditions are fetched on save — rain and wind suppress vocal activity heavily, which makes a low species count explainable rather than merely odd',
+      'Privacy: coordinates are rounded to about 11 km before the request — the weather is identical, the exact location is never transmitted. Off by default, must be switched on.',
+      'Existing recordings can be backfilled with weather data at the push of a button',
+    ]},
   { v:'0.25.2', date:'2026-08-16', de:[
       'Vogelbilder luden bisher unzuverlässig (mal ein paar da, mal nicht): beim Laden feuerten bis zu 50+ gleichzeitige Wikipedia-Anfragen los, viele liefen in den Timeout, bevor eine Verbindung frei wurde',
       'Behoben: alle Bild-/Info-Anfragen laufen jetzt durch eine Warteschlange (max. 4 gleichzeitig) — schont Wikipedias API und lädt zuverlässig. Ein einzelner Netzwerk-Hänger sperrt eine Art jetzt auch nicht mehr dauerhaft für die Sitzung.',
@@ -3373,6 +3401,9 @@ const METHODOLOGY_CONTENT = {
 
     <h4>Vollständigkeit der Artenliste</h4>
     <p>Der Bereich „Wie vollständig ist deine Artenliste?" schätzt, wie viele Arten an deinem Standort wahrscheinlich vorkommen, im Vergleich zu den bisher erfassten. Grundlage ist ausschließlich <strong>Anwesenheit/Abwesenheit pro erfasstem Tag</strong> (Inzidenz-Daten) — nie Erkennungszahlen. Die Artenzuwachs-Kurve (Stichproben-Rarefaction) zeigt, wie die Liste mit jedem Tag wächst; solange sie steigt, ist die Liste unvollständig. Die Schätzzahl ist <strong>Chao2</strong>, ausdrücklich als <strong>Untergrenze</strong> zu verstehen: mit wenigen Daten schwankt sie stark. Es werden <strong>keine</strong> Aussagen über Häufigkeit, Dichte oder Bestandsgrößen gemacht.</p>
+
+    <h4>Wetter-Kontext</h4>
+    <p>Wenn aktiviert, wird zu jeder Aufnahme das Wetter von <strong>Open-Meteo</strong> (ERA5-Reanalyse, CC BY 4.0) geholt. Die Koordinaten werden dafür auf etwa 11 km gerundet übertragen. Das Wetter ist als <strong>Kontext für die Nachvollziehbarkeit</strong> gedacht, nicht als Analyse-Eingang: Bei der derzeitigen Datenmenge lassen sich Wettereffekte nicht statistisch herausrechnen, und die App behauptet das auch nirgends. Der Nutzen liegt darin, später zu sehen, unter welchen Bedingungen eine Session lief.</p>
 
     <h4>Ökologische Evidenz</h4>
     <p>Der Bereich „Ökologische Evidenz" baut auf einer <strong>Art × Session-Matrix</strong> auf: jede Kennzahl (Artenzahl, Kern-/Einzel-Arten, Aufwand, Evidenz-Qualität) wird direkt aus den erfassten Beobachtungen berechnet und ist rückverfolgbar. Der Umschalter <strong>„Alle Erkennungen" ↔ „Nur belegte"</strong> ist ein Sensitivitätstest: „belegt" zählt nur bestätigte oder manuell/visuell erfasste Nachweise. Erzählen beide dieselbe Geschichte, ist die Aussage robust.</p>
@@ -3910,6 +3941,117 @@ function collectSpecies(){
   return species;
 }
 
+// ── Weather context (Open-Meteo) ─────────────────────────────────────────
+// Rain and wind suppress vocal activity heavily, so a session with few
+// species in a storm is a different thing from few species in still air.
+// Storing the conditions makes a low count explainable rather than just odd.
+// This is CONTEXT FOR THE RECORD, not an analysis input: with a small number
+// of logged days you cannot statistically separate weather effects, and the
+// app makes no such claim anywhere.
+//
+// PRIVACY: coordinates are rounded to one decimal (~11 km) before being sent.
+// Weather is effectively identical across that cell, but Open-Meteo only ever
+// sees "somewhere in an 11 km square", never the garden. Off by default —
+// nothing is requested until the user switches it on.
+let weatherEnabled = localStorage.getItem('birdlog:weather') === 'on';
+function setWeatherEnabled(on){
+  weatherEnabled = on;
+  localStorage.setItem('birdlog:weather', on ? 'on' : 'off');
+  const btn = document.getElementById('weatherBackfillBtn');
+  if(btn) btn.style.display = on ? '' : 'none';
+}
+function coarseCoord(v){ return Math.round(v * 10) / 10; }   // ~11 km grid
+
+// WMO weather codes → short human label (the API returns a numeric code)
+const WMO_CODE = {
+  0:{de:'klar',en:'clear'}, 1:{de:'überwiegend klar',en:'mainly clear'},
+  2:{de:'teils bewölkt',en:'partly cloudy'}, 3:{de:'bedeckt',en:'overcast'},
+  45:{de:'Nebel',en:'fog'}, 48:{de:'Reifnebel',en:'rime fog'},
+  51:{de:'leichter Niesel',en:'light drizzle'}, 53:{de:'Niesel',en:'drizzle'},
+  55:{de:'starker Niesel',en:'dense drizzle'},
+  61:{de:'leichter Regen',en:'light rain'}, 63:{de:'Regen',en:'rain'},
+  65:{de:'starker Regen',en:'heavy rain'},
+  71:{de:'leichter Schnee',en:'light snow'}, 73:{de:'Schnee',en:'snow'},
+  75:{de:'starker Schnee',en:'heavy snow'},
+  80:{de:'Regenschauer',en:'rain showers'}, 81:{de:'Schauer',en:'showers'},
+  82:{de:'starke Schauer',en:'violent showers'},
+  95:{de:'Gewitter',en:'thunderstorm'}, 96:{de:'Gewitter mit Hagel',en:'thunderstorm with hail'},
+};
+function wmoLabel(code){
+  const w = WMO_CODE[code];
+  return w ? w[lang] : (lang==='en' ? 'unknown' : 'unbekannt');
+}
+
+// Fetch weather for one entry's date+time. Returns null on any failure —
+// weather is a nice-to-have, never load-bearing.
+async function fetchWeatherFor(date, time){
+  if(!date) return null;
+  const lat = coarseCoord(center.lat), lon = coarseCoord(center.lng);
+  const hour = parseInt((time || '12:00').split(':')[0], 10) || 12;
+  const url = 'https://archive-api.open-meteo.com/v1/archive'
+    + `?latitude=${lat}&longitude=${lon}`
+    + `&start_date=${date}&end_date=${date}`
+    + '&hourly=temperature_2m,precipitation,wind_speed_10m,weather_code'
+    + '&timezone=auto';
+  try{
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 8000);
+    const res = await fetch(url, {signal: controller.signal});
+    clearTimeout(timeout);
+    if(!res.ok) return null;
+    const data = await res.json();
+    const h = data.hourly;
+    if(!h || !Array.isArray(h.time)) return null;
+    // pick the hour closest to the session time
+    let idx = h.time.findIndex(t => parseInt(t.split('T')[1], 10) === hour);
+    if(idx < 0) idx = Math.min(hour, h.time.length - 1);
+    if(idx < 0) return null;
+    return {
+      tempC: h.temperature_2m ? h.temperature_2m[idx] : null,
+      precipMm: h.precipitation ? h.precipitation[idx] : null,
+      windKmh: h.wind_speed_10m ? h.wind_speed_10m[idx] : null,
+      code: h.weather_code ? h.weather_code[idx] : null,
+      source: 'open-meteo',
+      grid: `${lat},${lon}`   // record the coarse cell actually queried
+    };
+  }catch(e){ return null; }
+}
+
+function weatherSummary(w){
+  if(!w) return '';
+  const bits = [];
+  if(w.code !== null && w.code !== undefined) bits.push(wmoLabel(w.code));
+  if(w.tempC !== null && w.tempC !== undefined) bits.push(`${Math.round(w.tempC)} °C`);
+  if(w.windKmh !== null && w.windKmh !== undefined) bits.push(`${Math.round(w.windKmh)} km/h`);
+  if(w.precipMm) bits.push(`${w.precipMm} mm`);
+  return bits.join(' · ');
+}
+
+// Backfill weather for existing entries that don't have it yet. Throttled
+// through the same queue idea as the wiki fetches so we don't fire 30+
+// simultaneous requests at Open-Meteo.
+const weatherQueue = makeQueue(3);
+async function backfillWeather(){
+  if(!weatherEnabled){ showToast(t('weatherOffToast')); return; }
+  const btn = document.getElementById('weatherBackfillBtn');
+  if(btn){ btn.disabled = true; btn.textContent = t('weatherWorking'); }
+  let entries = await currentEntries();
+  const todo = entries.filter(e => !e.weather && e.date);
+  let done = 0, failed = 0;
+  await Promise.all(todo.map(e => weatherQueue(async ()=>{
+    const w = await fetchWeatherFor(e.date, e.time);
+    if(w){ e.weather = w; done++; } else { failed++; }
+  })));
+  try{
+    await db.set('entries', JSON.stringify(entries));
+    if(typeof fileSync !== 'undefined' && fileSync.scheduleWrite) fileSync.scheduleWrite();
+  }catch(err){ console.error('weather backfill save failed', err); }
+  if(btn){ btn.disabled = false; btn.textContent = t('weatherBackfill'); }
+  showToast(t('weatherDone').replace('{n}', done).replace('{f}', failed));
+  renderAll();
+}
+// ── Weather (end) ────────────────────────────────────────────────────────
+
 async function saveEntry(){
   const species = collectSpecies();
   if(species.length === 0){
@@ -3935,6 +4077,14 @@ async function saveEntry(){
     const knownSpecies = new Set();
     entries.forEach(e=>(Array.isArray(e.species)?e.species:[]).forEach(s=>knownSpecies.add(s.name)));
     newSpecies = species.filter(s=>!knownSpecies.has(s.name)).map(s=>s.name);
+
+    // weather context, if enabled — never blocks or fails the save
+    if(weatherEnabled){
+      try{
+        const w = await fetchWeatherFor(entry.date, entry.time);
+        if(w) entry.weather = w;
+      }catch(err){ /* weather is optional; ignore */ }
+    }
 
     entries.push(entry);
     const result = await db.set('entries', JSON.stringify(entries));
@@ -5086,6 +5236,7 @@ async function renderAll(){
         </div>
         <div class="entry-detail">
           <div class="entry-species">${sp.map(s=>`${speciesLabel(s.species||s.name)} ×${obsDetections(s)}${obsIndividuals(s)!==null?` (${obsIndividuals(s)} Ind.)`:``}`).join(' · ')}</div>
+          ${e.weather ? `<div class="entry-weather">🌤 ${weatherSummary(e.weather)}</div>` : ''}
           ${e.notes ? `<div class="entry-notes">${e.notes}</div>` : ''}
         </div>
       </div>`;
@@ -5101,6 +5252,13 @@ async function renderAll(){
 
 // init
 distributePanels();
+// restore the weather opt-in state into the UI
+(function initWeatherToggle(){
+  const cb = document.getElementById('weatherToggle');
+  if(cb) cb.checked = weatherEnabled;
+  const btn = document.getElementById('weatherBackfillBtn');
+  if(btn) btn.style.display = weatherEnabled ? '' : 'none';
+})();
 setTab(localStorage.getItem('birdlog:tab') || TAB_DEFAULT);
 document.body.insertAdjacentHTML('beforeend', speciesDatalistHTML('speciesList', BIRD_DATALIST));
 document.body.insertAdjacentHTML('beforeend', speciesDatalistHTML('nightSpeciesList', NIGHT_SPECIES));
