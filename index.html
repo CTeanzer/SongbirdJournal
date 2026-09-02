@@ -1242,8 +1242,8 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.28.0';
-const APP_VERSION_DATE = '2026-08-28';
+const APP_VERSION = '0.28.1';
+const APP_VERSION_DATE = '2026-09-02';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
 
@@ -2076,6 +2076,7 @@ const I18N = {
   bulkOverwriteLabel:{de:"Bestehende Sessions bei gleichem Zeitstempel ersetzen (z. B. nach erneuter Analyse)", en:"Replace existing sessions with the same timestamp (e.g. after re-analysis)"},
   bulkOverwriteHint:{de:"Ersetzt nur die Artenerkennungen. Notizen, Wetter und manuell eingetragene Individuenzahlen bleiben erhalten. Standardmäßig aus.", en:"Only replaces the species detections. Notes, weather, and manually entered individual counts are kept. Off by default."},
   bulkUndated:      {de:"{n} Datei(en) ohne erkennbares Datum übersprungen.", en:"{n} file(s) skipped — no date could be determined."},
+  bulkUntranslated: {de:"⚠️ {n} Art(en) blieben englisch, bitte prüfen: {list}", en:"⚠️ {n} species stayed in English, please check: {list}"},
   bulkSaveFailed:   {de:"Speichern fehlgeschlagen.", en:"Saving failed."},
   toastExported:    {de:"Backup-Datei wurde erstellt", en:"Backup file created"},
   toastSettingsSaved:{de:"Standort und Zonen gespeichert", en:"Location and zones saved"},
@@ -3166,6 +3167,15 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.28.1', date:'2026-09-02', de:[
+      'BirdNET-Analyzer-Importe: englische Artnamen werden jetzt automatisch ins Deutsche übersetzt (Analyzers Spracheinstellung ist in manchen Versionen instabil), inklusive der offiziellen eBird-Namensform ("European Greenfinch" statt nur "Greenfinch")',
+      'Spalte "Begin Path" (Analyzer) wird jetzt wie "Begin File" (BirdNET Live) für die Zeiterkennung ausgewertet',
+      'Arten, die sich nicht zuordnen lassen (z. B. geografisch unplausible oder neue Arten), werden nach dem Import namentlich gemeldet statt unbemerkt als unbekannte Art angelegt',
+    ], en:[
+      'BirdNET-Analyzer imports: English species names are now automatically translated to German (Analyzer\'s language setting is known to be unstable in some versions), including the official eBird naming form ("European Greenfinch", not just "Greenfinch")',
+      'The "Begin Path" column (Analyzer) is now read for timestamp detection the same way "Begin File" (BirdNET Live) already was',
+      'Species that can\'t be matched (e.g. geographically implausible or genuinely new ones) are now named in the import summary instead of silently added as unknown species',
+    ]},
   { v:'0.28.0', date:'2026-08-28', de:[
       'Massenimport kann bestehende Sessions jetzt gezielt ersetzen (Haken „Bestehende Sessions ersetzen") — gedacht für den Fall, dass Aufnahmen erneut durch BirdNET-Analyzer laufen und neu importiert werden',
       'Beim Ersetzen werden nur die Artenerkennungen aktualisiert; Notizen, Wetter und manuell eingetragene Individuenzahlen bleiben unangetastet',
@@ -3932,6 +3942,60 @@ function showDateTimeHint(text, cls){
 //     "today" — they're reported back so nothing lands silently wrong
 //   • zone applies to the whole batch; individual sessions can be changed
 //     afterwards via the edit dialog
+// BirdNET-Analyzer, unlike BirdNET Live, can emit species names in English
+// (its "Language"/"locale" setting is known to reset to English on restart in
+// some versions — see birdnet-team/BirdNET-Analyzer#502). SongbirdJournal's
+// species matching, AVONET lookups, and status badges are all keyed on the
+// German name, so an English "Common Name" column would otherwise create
+// brand-new, unrecognised duplicate species and silently lose every existing
+// classification for that bird. Build a reverse EN→DE lookup from the tables
+// the app already maintains (SPECIES_EN is DE→EN; EBIRD_DE_TO_EN likewise,
+// when populated) rather than adding a new data source.
+let EN_TO_SPECIES_DE = null;
+let EN_TO_SPECIES_DE_CORE = null;   // qualifier-stripped fallback index
+// Geographic/frequency qualifiers eBird/BirdNET prepend to official common
+// names ("European Greenfinch", "Common Chaffinch") that this app's own
+// SPECIES_EN table mostly omits ("Greenfinch", "Chaffinch"). Only words that
+// are ALWAYS filler are listed — deliberately NOT "Great" or "Little", which
+// are load-bearing parts of real species names (Great Tit, Little Owl).
+const EN_QUALIFIERS = ['european','eurasian','common','western','northern','southern','old world'];
+function stripEnQualifier(s){
+  const words = s.toLowerCase().replace(/-/g,' ').replace(/\s+/g,' ').trim().split(' ');
+  if(words.length > 1 && EN_QUALIFIERS.includes(words[0])) return words.slice(1).join(' ');
+  return words.join(' ');
+}
+function enToDeSpeciesName(name){
+  if(!EN_TO_SPECIES_DE){
+    EN_TO_SPECIES_DE = {};
+    EN_TO_SPECIES_DE_CORE = {};
+    const addCore = (core, de)=>{
+      // only keep a core-form mapping if it's unambiguous — two different
+      // species reducing to the same core word (rare, but possible) must
+      // not silently merge into one
+      if(EN_TO_SPECIES_DE_CORE[core] === undefined) EN_TO_SPECIES_DE_CORE[core] = de;
+      else if(EN_TO_SPECIES_DE_CORE[core] !== de) EN_TO_SPECIES_DE_CORE[core] = false; // ambiguous
+    };
+    Object.entries(SPECIES_EN).forEach(([de,en])=>{
+      EN_TO_SPECIES_DE[en.toLowerCase()] = de;
+      addCore(stripEnQualifier(en), de);
+    });
+    Object.entries(EBIRD_DE_TO_EN).forEach(([de,en])=>{
+      EN_TO_SPECIES_DE[en.toLowerCase()] = de;
+      addCore(stripEnQualifier(en), de);
+    });
+  }
+  if(name in SPECIES_EN) return name;                       // already a known German name
+  const norm = name.trim().toLowerCase().replace(/-/g,' ').replace(/\s+/g,' ').trim();
+  if(EN_TO_SPECIES_DE[norm]) return EN_TO_SPECIES_DE[norm];
+  // second pass: strip a leading geographic/frequency qualifier from the
+  // INCOMING name and try again against both the full and core indexes
+  const stripped = stripEnQualifier(norm);
+  if(EN_TO_SPECIES_DE[stripped]) return EN_TO_SPECIES_DE[stripped];
+  const core = EN_TO_SPECIES_DE_CORE[stripped];
+  if(core) return core;                                      // false = ambiguous, falls through
+  return null;                                                // untranslated, caller must flag it
+}
+
 function parseSelectionsText(text){
   const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
   if(lines.length < 2) return null;
@@ -3939,15 +4003,33 @@ function parseSelectionsText(text){
   const nameIdx = header.indexOf('Common Name');
   const confIdx = header.indexOf('Confidence');
   const endIdx  = header.indexOf('End Time (s)');
-  const beginFileIdx = header.indexOf('Begin File');
+  // BirdNET Live calls this column "Begin File" (just the filename);
+  // BirdNET-Analyzer calls it "Begin Path" (the full path) — accept either.
+  let beginFileIdx = header.indexOf('Begin File');
+  let isPath = false;
+  if(beginFileIdx === -1){ beginFileIdx = header.indexOf('Begin Path'); isPath = true; }
   if(nameIdx === -1) return null;
   const agg = {};
+  const untranslated = new Set();
   let maxEnd = 0, beginFile = null;
   for(let i = 1; i < lines.length; i++){
     const cols = lines[i].split('\t');
-    const name = cols[nameIdx];
+    let name = cols[nameIdx];
     if(!name) continue;
-    if(!beginFile && beginFileIdx > -1) beginFile = cols[beginFileIdx];
+    // Analyzer can emit English common names (its language setting is known
+    // to reset in some versions) — translate to the German name the rest of
+    // the app expects; if we can't, keep the original and flag it, rather
+    // than silently creating an unrecognised duplicate species.
+    const de = enToDeSpeciesName(name);
+    if(de) name = de; else untranslated.add(cols[nameIdx]);
+    if(!beginFile && beginFileIdx > -1){
+      let raw = cols[beginFileIdx];
+      // "Begin Path" is a full path — reduce to just the filename, both for
+      // matching purposes and so a local file-system path never ends up
+      // stored anywhere.
+      if(isPath && raw) raw = raw.split(/[\\/]/).pop();
+      beginFile = raw;
+    }
     const conf = confIdx > -1 ? parseFloat(cols[confIdx]) : NaN;
     if(!agg[name]) agg[name] = [];
     if(!isNaN(conf)) agg[name].push(conf);
@@ -3957,7 +4039,7 @@ function parseSelectionsText(text){
     }
   }
   if(Object.keys(agg).length === 0) return null;
-  return {agg, maxEnd, beginFile};
+  return {agg, maxEnd, beginFile, untranslated: Array.from(untranslated)};
 }
 
 function readFileText(file){
@@ -4001,12 +4083,16 @@ async function handleBulkImport(event){
   const overwrite = document.getElementById('bulkOverwrite') && document.getElementById('bulkOverwrite').checked;
   let added = 0, skipped = 0, replaced = 0;
   const undated = [];
+  const untranslatedAll = new Set();
 
   for(const f of selFiles){
     let text;
     try{ text = await readFileText(f); }catch(e){ continue; }
     const parsed = parseSelectionsText(text);
     if(!parsed){ continue; }
+    if(parsed.untranslated && parsed.untranslated.length){
+      parsed.untranslated.forEach(n=>untranslatedAll.add(n));
+    }
 
     // date/time: filename first, then the Begin File column
     let ts = extractTimestampFromName(f.name) || extractTimestampFromName(parsed.beginFile);
@@ -4088,6 +4174,11 @@ async function handleBulkImport(event){
   let msg = t('bulkDone').replace('{a}', added).replace('{s}', skipped);
   if(replaced > 0) msg += ' ' + t('bulkReplaced').replace('{r}', replaced);
   if(undated.length) msg += ' ' + t('bulkUndated').replace('{n}', undated.length);
+  if(untranslatedAll.size){
+    msg += ' ' + t('bulkUntranslated')
+      .replace('{n}', untranslatedAll.size)
+      .replace('{list}', Array.from(untranslatedAll).slice(0,5).join(', ') + (untranslatedAll.size>5 ? '…' : ''));
+  }
   status.textContent = msg;
   showToast(msg);          // the grey status line alone was too easy to miss
   renderAll();
@@ -4115,11 +4206,14 @@ function handleBirdnetFile(event){
       if(nameIdx === -1) throw new Error('not a selections file');
 
       const agg = {};
+      const untranslated = new Set();
       let maxEnd = 0;
       for(let i = 1; i < lines.length; i++){
         const cols = lines[i].split('\t');
-        const name = cols[nameIdx];
+        let name = cols[nameIdx];
         if(!name) continue;
+        const de = enToDeSpeciesName(name);
+        if(de) name = de; else untranslated.add(cols[nameIdx]);
         const conf = confIdx > -1 ? parseFloat(cols[confIdx]) : null;
         if(!agg[name]) agg[name] = [];
         if(conf !== null && !isNaN(conf)) agg[name].push(conf);
@@ -4143,14 +4237,18 @@ function handleBirdnetFile(event){
         document.getElementById('entryDuration').value = Math.max(1, Math.round(maxEnd / 60));
       }
 
-      // Try the uploaded filename first, then a "Begin File" column if Raven
-      // included one, then give up honestly rather than trust a silent
-      // "today/now" default the way this always used to.
-      const beginFileIdx = header.indexOf('Begin File');
+      // Try the uploaded filename first, then a "Begin File"/"Begin Path"
+      // column if Raven/Analyzer included one, then give up honestly rather
+      // than trust a silent "today/now" default the way this always used to.
+      let beginFileIdx = header.indexOf('Begin File');
+      let beginIsPath = false;
+      if(beginFileIdx === -1){ beginFileIdx = header.indexOf('Begin Path'); beginIsPath = true; }
       let ts = extractTimestampFromName(file.name);
       if(!ts && beginFileIdx > -1){
         for(let i = 1; i < lines.length && !ts; i++){
-          ts = extractTimestampFromName(lines[i].split('\t')[beginFileIdx]);
+          let raw = lines[i].split('\t')[beginFileIdx];
+          if(beginIsPath && raw) raw = raw.split(/[\\/]/).pop();
+          ts = extractTimestampFromName(raw);
         }
       }
       if(ts){
@@ -4161,8 +4259,14 @@ function handleBirdnetFile(event){
         showDateTimeHint(t('dtNotGuessed'), 'datetime-hint-warn');
       }
 
-      status.textContent = t('uploadSuccess').replace('{n}', names.length);
-      showToast(t('uploadSuccess').replace('{n}', names.length));
+      let successMsg = t('uploadSuccess').replace('{n}', names.length);
+      if(untranslated.size){
+        successMsg += ' ' + t('bulkUntranslated')
+          .replace('{n}', untranslated.size)
+          .replace('{list}', Array.from(untranslated).slice(0,5).join(', ') + (untranslated.size>5 ? '…' : ''));
+      }
+      status.textContent = successMsg;
+      showToast(successMsg);
     }catch(err){
       status.textContent = t('uploadFailed');
       showToast(t('uploadFailed'));
