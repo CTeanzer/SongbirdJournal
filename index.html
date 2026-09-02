@@ -875,6 +875,11 @@
         <button type="button" class="btn-secondary" onclick="document.getElementById('bulkFileInput').click()" data-i18n="bulkBtn">Mehrere Sessions auf einmal importieren…</button>
         <input type="file" id="bulkFileInput" accept=".txt,.json" multiple onchange="handleBulkImport(event)" style="display:none;">
         <div class="bulk-hint" data-i18n="bulkHint">Wähle alle selections.txt aus (die metadata.json-Dateien gern mit — sie liefern die exakte Dauer). Datum und Uhrzeit werden aus den Dateinamen gelesen, bereits vorhandene Sessions werden übersprungen. Die Zone oben gilt für den ganzen Stapel.</div>
+        <label class="weather-row" style="margin-top:9px;">
+          <input type="checkbox" id="bulkOverwrite">
+          <span data-i18n="bulkOverwriteLabel">Bestehende Sessions bei gleichem Zeitstempel ersetzen (z. B. nach erneuter Analyse)</span>
+        </label>
+        <div class="bulk-hint" data-i18n="bulkOverwriteHint">Ersetzt nur die Artenerkennungen. Notizen, Wetter und manuell eingetragene Individuenzahlen bleiben erhalten. Standardmäßig aus.</div>
         <div id="bulkStatus" style="font-size:11px; color:var(--text-dim); margin-top:6px;"></div>
       </div>
 
@@ -1237,7 +1242,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.27.0';
+const APP_VERSION = '0.28.0';
 const APP_VERSION_DATE = '2026-08-28';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -1926,6 +1931,9 @@ let verifications = {};   // { "Artname": {status:'confirmed'|'rejected', note, 
 let currentModalSpecies = null;
 
 async function setVerification(name, status){
+  showToast(status === 'confirmed' ? t('toastConfirmed').replace('{s}', speciesLabel(name))
+          : status === 'rejected'  ? t('toastRejected').replace('{s}', speciesLabel(name))
+          : t('toastVerifReset').replace('{s}', speciesLabel(name)));
   if(status === 'reset'){ delete verifications[name]; }
   else {
     const prev = verifications[name] || {};
@@ -2064,8 +2072,19 @@ const I18N = {
   bulkReading:      {de:"Lese {n} Dateien…", en:"Reading {n} files…"},
   bulkNoSelections: {de:"Keine selections.txt in der Auswahl gefunden.", en:"No selections.txt found in the selection."},
   bulkDone:         {de:"{a} Sessions importiert, {s} bereits vorhanden.", en:"{a} sessions imported, {s} already present."},
+  bulkReplaced:     {de:"{r} Sessions mit neuer Auswertung aktualisiert.", en:"{r} sessions updated with new analysis."},
+  bulkOverwriteLabel:{de:"Bestehende Sessions bei gleichem Zeitstempel ersetzen (z. B. nach erneuter Analyse)", en:"Replace existing sessions with the same timestamp (e.g. after re-analysis)"},
+  bulkOverwriteHint:{de:"Ersetzt nur die Artenerkennungen. Notizen, Wetter und manuell eingetragene Individuenzahlen bleiben erhalten. Standardmäßig aus.", en:"Only replaces the species detections. Notes, weather, and manually entered individual counts are kept. Off by default."},
   bulkUndated:      {de:"{n} Datei(en) ohne erkennbares Datum übersprungen.", en:"{n} file(s) skipped — no date could be determined."},
   bulkSaveFailed:   {de:"Speichern fehlgeschlagen.", en:"Saving failed."},
+  toastExported:    {de:"Backup-Datei wurde erstellt", en:"Backup file created"},
+  toastSettingsSaved:{de:"Standort und Zonen gespeichert", en:"Location and zones saved"},
+  toastWeatherOn:   {de:"Wetterabfrage aktiviert", en:"Weather fetching enabled"},
+  toastWeatherOff:  {de:"Wetterabfrage deaktiviert", en:"Weather fetching disabled"},
+  toastConfirmed:   {de:"{s} als bestätigt markiert", en:"{s} marked as confirmed"},
+  toastRejected:    {de:"{s} als verworfen markiert", en:"{s} marked as rejected"},
+  toastVerifReset:  {de:"Prüfstatus für {s} zurückgesetzt", en:"Verification reset for {s}"},
+  toastParsed:      {de:"{n} Arten ins Formular übernommen", en:"{n} species added to the form"},
   locateBtnA:       {de:"Standort: Zone A verwenden", en:"Use my location: Zone A"},
   locateBtnB:       {de:"Standort: Zone B verwenden", en:"Use my location: Zone B"},
   locateLoading:    {de:"Suche Standort…", en:"Locating…"},
@@ -3147,6 +3166,22 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.28.0', date:'2026-08-28', de:[
+      'Massenimport kann bestehende Sessions jetzt gezielt ersetzen (Haken „Bestehende Sessions ersetzen") — gedacht für den Fall, dass Aufnahmen erneut durch BirdNET-Analyzer laufen und neu importiert werden',
+      'Beim Ersetzen werden nur die Artenerkennungen aktualisiert; Notizen, Wetter und manuell eingetragene Individuenzahlen bleiben unangetastet',
+      'Standardmäßig aus — ein normaler Re-Import überspringt vorhandene Sessions weiterhin wie bisher',
+    ], en:[
+      'Bulk import can now selectively replace existing sessions (checkbox "Replace existing sessions") — for when recordings are re-run through BirdNET-Analyzer and re-imported',
+      'Replacing only updates the species detections; notes, weather, and manually entered individual counts are left untouched',
+      'Off by default — a normal re-import still skips existing sessions as before',
+    ]},
+  { v:'0.27.1', date:'2026-08-28', de:[
+      'Jede Aktion, die etwas verändert, bestätigt das jetzt sichtbar — vorher liefen acht davon stumm ab, darunter der Massenimport, Export, Bestätigen/Verwerfen von Arten und das Speichern der Zonen',
+      'Der Massenimport meldet sein Ergebnis zusätzlich als Hinweis, nicht nur in der leicht zu übersehenden Statuszeile',
+    ], en:[
+      'Every action that changes something now confirms it visibly — eight of them previously ran silently, including bulk import, export, confirming/rejecting species, and saving zones',
+      'Bulk import now reports its result as a notification too, not only in the easily missed status line',
+    ]},
   { v:'0.27.0', date:'2026-08-28', de:[
       'Massenimport: beliebig viele BirdNET-Sessions auf einmal einlesen. Datum und Uhrzeit kommen aus den Dateinamen, die exakte Dauer aus der metadata.json, falls mitausgewählt',
       'Bereits vorhandene Sessions werden übersprungen — derselbe Ordner lässt sich gefahrlos erneut importieren',
@@ -3736,6 +3771,7 @@ function useMyLocation(zone){
 
 async function saveSettings(){
   locationSet = true;   // saving means the user has placed a real location
+  showToast(t('toastSettingsSaved'));
   try{
     await db.set('map-settings', JSON.stringify({
       lat: center.lat, lng: center.lng,
@@ -3955,13 +3991,15 @@ async function handleBulkImport(event){
   }
   if(selFiles.length === 0){
     status.textContent = t('bulkNoSelections');
+    showToast(t('bulkNoSelections'));
     return;
   }
 
   let entries = await currentEntries();
-  const existingKeys = new Set(entries.map(e => e.date + ' ' + (e.time||'')));
+  const existingByKey = new Map(entries.map(e => [e.date + ' ' + (e.time||''), e]));
   const zone = currentZone;
-  let added = 0, skipped = 0;
+  const overwrite = document.getElementById('bulkOverwrite') && document.getElementById('bulkOverwrite').checked;
+  let added = 0, skipped = 0, replaced = 0;
   const undated = [];
 
   for(const f of selFiles){
@@ -3975,7 +4013,8 @@ async function handleBulkImport(event){
     if(!ts){ undated.push(f.name); continue; }
 
     const key = ts.date + ' ' + ts.time;
-    if(existingKeys.has(key)){ skipped++; continue; }
+    const existing = existingByKey.get(key);
+    if(existing && !overwrite){ skipped++; continue; }
 
     const meta = metaByKey[key];
     // duration: metadata is authoritative, else the last detection's end time
@@ -3986,34 +4025,55 @@ async function handleBulkImport(event){
       durationMin = Math.max(1, Math.round(parsed.maxEnd / 60));
     }
 
+    // carry over any manual per-species individual counts the user already
+    // entered, matched by name — a re-run through the Analyzer changes
+    // detections/confidences, not what you saw with your own eyes
+    const priorIndividuals = {};
+    if(existing && Array.isArray(existing.species)){
+      existing.species.forEach(s=>{
+        const ind = obsIndividuals(s);
+        if(ind !== null) priorIndividuals[s.species || s.name] = ind;
+      });
+    }
+
     const species = Object.keys(parsed.agg).map(name=>{
       const confs = parsed.agg[name];
       return normalizeObservation({
         name,
         acousticDetections: confs.length,
-        individuals: null,
+        individuals: (name in priorIndividuals) ? priorIndividuals[name] : null,
         detections: confs.map(c=>({c})),
         source: 'birdnet'
       });
     });
 
-    const entry = {
-      id: 'e' + Date.now() + '_' + added,
-      type: 'bird',
-      date: ts.date,
-      time: ts.time,
-      duration: durationMin,
-      zone,
-      species,
-      notes: ''
-    };
-    if(weatherEnabled){
-      try{ const w = await fetchWeatherFor(entry.date, entry.time); if(w) entry.weather = w; }
-      catch(e){ /* optional */ }
+    if(existing){
+      // OVERWRITE: refresh the species/detection data from the new analysis,
+      // but keep everything the user themselves added — notes, weather
+      // already fetched, and the zone as it stands (may have been corrected
+      // by hand since the original import).
+      existing.species = species;
+      existing.duration = durationMin;
+      replaced++;
+    } else {
+      const entry = {
+        id: 'e' + Date.now() + '_' + added,
+        type: 'bird',
+        date: ts.date,
+        time: ts.time,
+        duration: durationMin,
+        zone,
+        species,
+        notes: ''
+      };
+      if(weatherEnabled){
+        try{ const w = await fetchWeatherFor(entry.date, entry.time); if(w) entry.weather = w; }
+        catch(e){ /* optional */ }
+      }
+      entries.push(entry);
+      existingByKey.set(key, entry);
+      added++;
     }
-    entries.push(entry);
-    existingKeys.add(key);
-    added++;
   }
 
   try{
@@ -4021,12 +4081,15 @@ async function handleBulkImport(event){
     if(typeof fileSync !== 'undefined' && fileSync.scheduleWrite) fileSync.scheduleWrite();
   }catch(e){
     status.textContent = t('bulkSaveFailed');
+    showToast(t('bulkSaveFailed'));
     return;
   }
 
   let msg = t('bulkDone').replace('{a}', added).replace('{s}', skipped);
+  if(replaced > 0) msg += ' ' + t('bulkReplaced').replace('{r}', replaced);
   if(undated.length) msg += ' ' + t('bulkUndated').replace('{n}', undated.length);
   status.textContent = msg;
+  showToast(msg);          // the grey status line alone was too easy to miss
   renderAll();
 }
 // ── Bulk import (end) ────────────────────────────────────────────────────
@@ -4099,8 +4162,10 @@ function handleBirdnetFile(event){
       }
 
       status.textContent = t('uploadSuccess').replace('{n}', names.length);
+      showToast(t('uploadSuccess').replace('{n}', names.length));
     }catch(err){
       status.textContent = t('uploadFailed');
+      showToast(t('uploadFailed'));
       console.error('BirdNET file parse failed', err);
     }
   };
@@ -4111,12 +4176,14 @@ function handleBirdnetFile(event){
 function parseImport(){
   const text = document.getElementById('importText').value.trim();
   if(!text) return;
+  let n = 0;
   text.split('\n').forEach(line=>{
     const parts = line.split(',').map(p=>p.trim());
-    if(parts[0]) addSpeciesRow(parts[0], parts[1] || 1, parts[2] || '');
+    if(parts[0]){ addSpeciesRow(parts[0], parts[1] || 1, parts[2] || ''); n++; }
   });
   document.getElementById('importText').value = '';
   toggleImport();
+  showToast(t('toastParsed').replace('{n}', n));
 }
 
 function collectSpecies(){
@@ -4153,6 +4220,7 @@ let weatherEnabled = localStorage.getItem('birdlog:weather') === 'on';
 function setWeatherEnabled(on){
   weatherEnabled = on;
   localStorage.setItem('birdlog:weather', on ? 'on' : 'off');
+  showToast(on ? t('toastWeatherOn') : t('toastWeatherOff'));
   const btn = document.getElementById('weatherBackfillBtn');
   if(btn) btn.style.display = on ? '' : 'none';
 }
@@ -4472,6 +4540,7 @@ async function exportData(){
   a.click();
   URL.revokeObjectURL(url);
   localStorage.setItem('birdlog:lastExport', String(Date.now()));
+  showToast(t('toastExported'));
 }
 
 function importData(event){
