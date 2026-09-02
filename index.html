@@ -640,7 +640,17 @@
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
-  .overview-controls{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .overview-controls{display:flex; justify-content:flex-start; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .overview-search{
+    padding:7px 12px; border:1px solid var(--border); border-radius:6px; background:var(--bg-elev);
+    color:var(--text); font-size:13px; font-family:inherit; min-width:160px; flex:1 1 160px;
+  }
+  .overview-search::placeholder{ color:var(--text-dim); }
+  #reliabilityFilterSelect, #residencyFilterSelect{
+    padding:7px 10px; border:1px solid var(--border); border-radius:6px; background:var(--bg-elev);
+    color:var(--text); font-size:12.5px; font-family:inherit;
+  }
+  .filter-result-note{font-size:12px; color:var(--text-dim); margin:-2px 0 10px 2px;}
   .segmented{display:flex; border:1px solid var(--border); border-radius:6px; overflow:hidden;}
   .segmented button{
     border:none; background:var(--bg-elev); color:var(--text-dim);
@@ -1017,17 +1027,32 @@
     </h2>
     <div id="speciesOverviewBody">
       <div class="overview-controls">
+        <input type="text" id="overviewSearch" class="overview-search" oninput="setOverviewSearch(this.value)"
+               data-i18n-placeholder="searchPlaceholder" placeholder="Art suchen…">
         <div class="segmented" role="group" aria-label="Filter">
           <button type="button" id="scopeAll" class="active" onclick="setOverviewScope('all')" data-i18n="scopeAll">Alle</button>
           <button type="button" id="scopeBird" onclick="setOverviewScope('bird')" data-i18n="scopeBird">Vögel</button>
           <button type="button" id="scopeNight" onclick="setOverviewScope('night')" data-i18n="scopeNight">Nachtkamera</button>
         </div>
+        <select id="reliabilityFilterSelect" onchange="setReliabilityFilter(this.value)">
+          <option value="all" data-i18n="filterRelAll">Alle Arten</option>
+          <option value="verify" data-i18n="filterRelVerify">Nur „prüfen"</option>
+          <option value="probable" data-i18n="filterRelProbable">Nur „wahrscheinlich"</option>
+          <option value="solid" data-i18n="filterRelSolid">Nur „belastbar"</option>
+        </select>
+        <select id="residencyFilterSelect" onchange="setResidencyFilter(this.value)">
+          <option value="all" data-i18n="filterResAll">Alle Häufigkeiten</option>
+          <option value="resident" data-i18n="filterResResident">Nur Stammgäste</option>
+          <option value="occasional" data-i18n="filterResOccasional">Nur gelegentlich</option>
+          <option value="visitor" data-i18n="filterResVisitor">Nur Durchzügler</option>
+        </select>
         <select id="sortSelect" onchange="setSortMode(this.value)">
           <option value="freq" data-i18n="sortFreq">Häufigkeit</option>
           <option value="name" data-i18n="sortName">Name</option>
           <option value="recent" data-i18n="sortRecent">Zuletzt gesehen</option>
         </select>
       </div>
+      <div id="filterResultNote" class="filter-result-note" style="display:none;"></div>
       <div id="speciesOverview" class="loading" data-i18n="loadingText">Lade Daten…</div>
     </div>
   </div>
@@ -1252,7 +1277,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.30.0';
+const APP_VERSION = '0.31.0';
 const APP_VERSION_DATE = '2026-09-02';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -2274,6 +2299,17 @@ const I18N = {
   dtGuessed:        {de:"Datum/Zeit aus Dateiname übernommen: {v} — bitte prüfen.", en:"Date/time read from filename: {v} — please check."},
   dtNotGuessed:      {de:"Datum & Zeit nicht in der Datei gefunden — Felder zeigen noch \"jetzt\". Bei mehreren Uploads hintereinander bitte VOR dem Speichern korrigieren.", en:"Couldn't read date/time from the file — fields still show \"now\". If you're importing several files in a row, please correct these BEFORE saving each one."},
   sortFreq:         {de:"Häufigkeit", en:"Frequency"},
+  searchPlaceholder:{de:"Art suchen…", en:"Search species…"},
+  filterRelAll:     {de:"Alle Arten", en:"All species"},
+  filterRelVerify:  {de:"Nur „prüfen“", en:"Only \u201cverify\u201d"},
+  filterRelProbable:{de:"Nur „wahrscheinlich“", en:"Only \u201cprobable\u201d"},
+  filterRelSolid:   {de:"Nur „belastbar“", en:"Only \u201csolid\u201d"},
+  filterResAll:     {de:"Alle Häufigkeiten", en:"All frequencies"},
+  filterResResident:{de:"Nur Stammgäste", en:"Only residents"},
+  filterResOccasional:{de:"Nur gelegentlich", en:"Only occasional"},
+  filterResVisitor: {de:"Nur Durchzügler", en:"Only visitors"},
+  filterResultCount:{de:"{n} von {total} Arten entsprechen der Suche/den Filtern.", en:"{n} of {total} species match your search/filters."},
+  emptyFilterResult:{de:"Keine Arten entsprechen dieser Suche oder diesen Filtern.", en:"No species match this search or these filters."},
   sortName:         {de:"Name", en:"Name"},
   sortRecent:       {de:"Zuletzt gesehen", en:"Last seen"},
   newSpeciesToast:  {de:"🎉 Neue Art entdeckt: ", en:"🎉 New species spotted: "},
@@ -2733,6 +2769,33 @@ function setSortMode(mode){
 }
 
 let overviewScope = localStorage.getItem('birdlog:overviewScope') || 'all';
+// Search + content filters for the species table. Deliberately session-only
+// (not persisted) — a saved search/filter that silently hides species on next
+// visit would be an easy way to accidentally "lose" data from view. Both
+// filters key off numbers the app already computes (reliability tier,
+// residency) — filtering existing evidence, not adding a new claim.
+let overviewSearch = '';
+let reliabilityFilter = 'all';   // all|solid|probable|verify
+let residencyFilter = 'all';     // all|resident|occasional|visitor
+
+function setOverviewSearch(v){ overviewSearch = v; refreshOverviewTable(); }
+function setReliabilityFilter(v){ reliabilityFilter = v; refreshOverviewTable(); }
+function setResidencyFilter(v){ residencyFilter = v; refreshOverviewTable(); }
+
+// Re-renders just the species table — used by search/filter changes so
+// typing doesn't re-run the whole dashboard (calendar, evidence, signature…)
+// on every keystroke.
+async function refreshOverviewTable(){
+  const entries = await currentEntries();
+  const birdEntries = entries.filter(e=> (e.type || 'bird') === 'bird');
+  const nightEntries = entries.filter(e=> e.type === 'night');
+  const scoped = overviewScope === 'bird' ? birdEntries
+               : overviewScope === 'night' ? nightEntries
+               : entries;
+  try{ renderOverviewTable(scoped, 'speciesOverview', sortMode, 'ov'); }
+  catch(err){ console.error('refreshOverviewTable failed', err); }
+}
+
 function setOverviewScope(scope){
   overviewScope = scope;
   localStorage.setItem('birdlog:overviewScope', scope);
@@ -3195,6 +3258,17 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.31.0', date:'2026-09-02', de:[
+      'Suchfeld in der Artenübersicht — filtert live nach Namen, unabhängig von der Sprachanzeige',
+      'Neuer Filter „Verlässlichkeit": zeigt gezielt nur Arten mit dem Status „prüfen", „wahrscheinlich" oder „belastbar" — macht den Verifikations-Rückstand mit einem Klick sichtbar statt scrollend zu suchen',
+      'Neuer Filter „Häufigkeit": nur Stammgäste, nur gelegentliche oder nur einmalige Arten anzeigen — nutzt dieselbe Einstufung wie die Übersicht-Badges',
+      'Beide Filter greifen auf bereits berechnete Werte zurück, keine neue Kennzahl',
+    ], en:[
+      'Search field in the species overview — filters live by name, independent of the display language',
+      'New "Reliability" filter: shows only species tagged "verify", "probable", or "solid" — surfaces the verification backlog in one click instead of scrolling to find it',
+      'New "Frequency" filter: show only residents, only occasional visitors, or only one-off species — uses the same categorisation as the overview badges',
+      'Both filters read from figures the app already computes, not a new metric',
+    ]},
   { v:'0.30.0', date:'2026-09-02', de:[
       'Neue Struktur: „Eintragen" ist kein eigener Tab mehr, sondern eine Aktion „+ Neue Aufnahme" oben im Header — von überall erreichbar, öffnet als Dialog über dem Dashboard',
       'Nach dem Speichern schließt sich der Dialog automatisch und die Übersicht zeigt sofort die neuen Zahlen — kein Tab-Wechsel mehr nötig, um das Ergebnis eines Imports zu sehen',
@@ -5682,6 +5756,30 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
   let rows = Object.entries(agg);
   const overviewLoggedDays = new Set(entries.map(e=>e.date)).size;
   TOTAL_LOGGED_DAYS = overviewLoggedDays;   // feeds combinedEvidence() temporal coverage
+  const maxDays = Math.max(...rows.map(r=>r[1].days.size));   // from the FULL set, so bar widths stay stable across filter changes
+  const totalRowCount = rows.length;
+
+  // Search: match against whatever name is actually shown (respects language
+  // mode) — a German-mode user searching "Kohl" should not need to know the
+  // English name, and vice versa.
+  const q = (overviewSearch || '').trim().toLowerCase();
+  if(q) rows = rows.filter(([name]) => speciesLabel(name).toLowerCase().includes(q) || name.toLowerCase().includes(q));
+
+  // Reliability filter — reuses the same tier the badge already shows, so
+  // "only verify" surfaces exactly the species whose badge says "prüfen".
+  if(reliabilityFilter !== 'all') rows = rows.filter(([, d]) => reliabilityTier(d).tier === reliabilityFilter);
+
+  // Residency filter — reuses the same category the frequency-column dot
+  // already encodes.
+  if(residencyFilter !== 'all') rows = rows.filter(([, d]) => speciesResidency(d.days.size, overviewLoggedDays) === residencyFilter);
+
+  const note = document.getElementById('filterResultNote');
+  if(note){
+    const filtered = q || reliabilityFilter !== 'all' || residencyFilter !== 'all';
+    note.style.display = filtered ? '' : 'none';
+    if(filtered) note.textContent = t('filterResultCount').replace('{n}', rows.length).replace('{total}', totalRowCount);
+  }
+
   if(mode === 'name'){
     rows.sort((a,b)=> speciesLabel(a[0]).localeCompare(speciesLabel(b[0])));
   } else if(mode === 'recent'){
@@ -5689,7 +5787,10 @@ function renderOverviewTable(entries, containerId, mode, idPrefix){
   } else {
     rows.sort((a,b)=>b[1].days.size - a[1].days.size);
   }
-  const maxDays = Math.max(...rows.map(r=>r[1].days.size));
+  if(rows.length === 0){
+    container.innerHTML = `<div class="empty-state">${t('emptyFilterResult')}</div>`;
+    return;
+  }
   container.innerHTML = `
     <div class="rel-legend">
       <span>${t('relLegendLabel')}</span>
