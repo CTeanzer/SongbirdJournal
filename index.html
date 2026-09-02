@@ -351,6 +351,14 @@
     padding:8px; width:100%; border-radius:5px; cursor:pointer; font-size:13px;
   }
   .add-species-btn:hover{border-color:var(--accent); color:var(--accent);}
+  .header-cta{
+    background:var(--cta); color:#ffffff; border:none; padding:8px 16px;
+    border-radius:6px; font-weight:700; font-size:13px; cursor:pointer;
+    font-family:inherit; display:inline-flex; align-items:center; gap:6px;
+    box-shadow:0 1px 2px rgba(61,71,89,0.25);
+  }
+  .header-cta:hover{ background:var(--cta-hover); box-shadow:0 3px 10px rgba(61,71,89,0.35); transform:translateY(-1px); }
+  .header-cta:active{ background:var(--cta-active); transform:translateY(0) scale(0.98); }
   .save-btn{
     margin-top:16px; width:100%; background:var(--cta); color:#ffffff; border:none;
     padding:12px; border-radius:5px; font-weight:700; font-size:14px;
@@ -386,7 +394,13 @@
   .entry-species{color:var(--text-dim); font-size:12px; line-height:1.6;}
   .entry-notes{color:var(--text-dim); font-size:12px; font-style:italic; margin-top:6px; padding-top:6px; border-top:1px solid var(--border);}
   .entry-weather{color:var(--text-dim); font-size:12px; margin-top:6px; line-height:1.6;}
-  .entry-glyph{font-size:14px; flex-shrink:0; line-height:1;}
+  .entry-glyph{flex-shrink:0; line-height:1; display:inline-flex;}
+  .wx-icon{width:16px; height:16px; color:var(--text-dim);}
+  .wx-icon.wx-sun{color:#d99a2b;}
+  .wx-icon.wx-sun .wx-sun-part, .wx-icon.wx-partly .wx-sun-part{fill:#d99a2b;}
+  .wx-icon.wx-storm .wx-bolt{fill:#d99a2b;}
+  .wx-icon > path, .wx-icon circle{fill:currentColor;}
+  .wx-icon g{fill:none;}
   .bulk-import{margin-top:12px; padding-top:12px; border-top:1px dashed var(--border);}
   .bulk-hint{font-size:11px; color:var(--text-dim); line-height:1.45; margin-top:7px;}
   .weather-setting{margin-top:16px; padding-top:14px; border-top:1px solid var(--border);}
@@ -755,6 +769,7 @@
     </div>
     <button onclick="openGuideModal()" data-i18n="guideBtn" style="background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:600;">Anleitung</button>
     <button onclick="openMethodologyModal()" data-i18n="methodBtn" style="background:none; border:1px solid var(--border); color:var(--accent); border-radius:5px; padding:5px 10px; font-size:11px; cursor:pointer; font-weight:600;">Methodik</button>
+    <button class="header-cta" onclick="openEntryModal()" data-i18n="newEntryBtn">+ Neue Aufnahme</button>
     <div class="streak"><span data-i18n="streakLabel">Aufnahmen geloggt</span><b id="streakCount">–</b></div>
     <div class="menu-wrap">
       <button class="menu-btn" id="menuBtn" onclick="toggleMenu(event)" aria-haspopup="true"
@@ -804,13 +819,11 @@
     <button class="tab" role="tab" data-tab="overview" onclick="setTab('overview')">
       <span class="tab-dot" id="tabNewDot" style="display:none;"></span><span data-i18n="tabOverview">Neu &amp; Übersicht</span>
     </button>
-    <button class="tab" role="tab" data-tab="log" onclick="setTab('log')" data-i18n="tabLog">Eintragen</button>
     <button class="tab" role="tab" data-tab="patterns" onclick="setTab('patterns')" data-i18n="tabPatterns">Muster</button>
     <button class="tab" role="tab" data-tab="map" onclick="setTab('map')" data-i18n="tabMap">Karte &amp; Zonen</button>
   </nav>
 
   <div class="tab-view" data-view="overview" id="view-overview"></div>
-  <div class="tab-view" data-view="log" id="view-log"></div>
   <div class="tab-view" data-view="patterns" id="view-patterns"></div>
   <div class="tab-view" data-view="map" id="view-map"></div>
 
@@ -821,86 +834,6 @@
      handlers, i18n intact) while regrouping them into tabs — a structural
      move, not a rewrite of each panel. -->
 <div id="panelStash" style="display:none;">
-
-  <div class="panel" data-home="log">
-    <h2>
-      <button type="button" class="collapsible-header" onclick="togglePanel('entryBody')"
-              aria-expanded="true" aria-controls="entryBody">
-        <span data-i18n="panelEntryTitle">Neue Aufnahme eintragen</span>
-        <span class="chevron" id="entryBody-chevron">▾</span>
-      </button>
-    </h2>
-    <div id="entryBody">
-
-
-    <div class="zone-toggle" style="margin-bottom:14px;">
-      <button type="button" class="zone-btn active-sel" id="btnTypeBird" onclick="setEntryType('bird')" aria-pressed="true" data-i18n="typeBird">BirdNET-Aufnahme</button>
-      <button type="button" class="zone-btn" id="btnTypeNight" onclick="setEntryType('night')" aria-pressed="false" data-i18n="typeNight">Nachtkamera</button>
-    </div>
-
-    <div class="slider-row">
-      <div class="slider-group">
-        <label class="field-label" data-i18n="fieldDate">Datum</label>
-        <input type="date" id="entryDate">
-      </div>
-      <div class="slider-group">
-        <label class="field-label" data-i18n="fieldTime">Uhrzeit</label>
-        <input type="time" id="entryTime">
-      </div>
-      <div id="dateTimeHint" style="display:none; flex-basis:100%; font-size:11px; margin-top:2px;"></div>
-      <div class="slider-group" id="durationGroup">
-        <label class="field-label" data-i18n="fieldDuration">Dauer (Min)</label>
-        <input type="number" id="entryDuration" value="6" min="1">
-      </div>
-    </div>
-
-    <label class="field-label" data-i18n="fieldZone">Zone</label>
-    <div class="zone-toggle">
-      <button type="button" class="zone-btn active-a" id="btnZoneA" onclick="setZone('A')" aria-pressed="true" data-i18n="zoneATag">Zone A · Garten</button>
-      <button type="button" class="zone-btn" id="btnZoneB" onclick="setZone('B')" aria-pressed="false" data-i18n="zoneBTag">Zone B · Feldrand</button>
-    </div>
-
-    <div id="importSection">
-      <label class="field-label" data-i18n="uploadLabel" style="margin-top:16px;">BirdNET-Datei hochladen</label>
-      <div class="dropzone" id="birdnetDrop" tabindex="0" role="button"
-           onclick="document.getElementById('birdnetFileInput').click()"
-           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('birdnetFileInput').click();}">
-        <span class="dropzone-main" data-i18n="dropzoneMain">BirdNET-.txt hierher ziehen</span>
-        <span class="dropzone-sub" data-i18n="dropzoneSub">oder klicken, um eine Datei zu wählen</span>
-      </div>
-      <input type="file" id="birdnetFileInput" accept=".txt" onchange="handleBirdnetFile(event)" style="display:none;">
-      <div id="uploadStatus" style="font-size:11px; color:var(--text-dim); margin-top:4px;"></div>
-
-      <div class="bulk-import">
-        <button type="button" class="btn-secondary" onclick="document.getElementById('bulkFileInput').click()" data-i18n="bulkBtn">Mehrere Sessions auf einmal importieren…</button>
-        <input type="file" id="bulkFileInput" accept=".txt,.json" multiple onchange="handleBulkImport(event)" style="display:none;">
-        <div class="bulk-hint" data-i18n="bulkHint">Wähle alle selections.txt aus (die metadata.json-Dateien gern mit — sie liefern die exakte Dauer). Datum und Uhrzeit werden aus den Dateinamen gelesen, bereits vorhandene Sessions werden übersprungen. Die Zone oben gilt für den ganzen Stapel.</div>
-        <label class="weather-row" style="margin-top:9px;">
-          <input type="checkbox" id="bulkOverwrite">
-          <span data-i18n="bulkOverwriteLabel">Bestehende Sessions bei gleichem Zeitstempel ersetzen (z. B. nach erneuter Analyse)</span>
-        </label>
-        <div class="bulk-hint" data-i18n="bulkOverwriteHint">Ersetzt nur die Artenerkennungen. Notizen, Wetter und manuell eingetragene Individuenzahlen bleiben erhalten. Standardmäßig aus.</div>
-        <div id="bulkStatus" style="font-size:11px; color:var(--text-dim); margin-top:6px;"></div>
-      </div>
-
-      <span class="import-toggle" onclick="toggleImport()" data-i18n="importToggle">oder BirdNET-Export einfügen (CSV: Art,Anzahl,Konfidenz)</span>
-      <div class="import-box" id="importBox">
-        <textarea id="importText" data-i18n-placeholder="importPlaceholder" placeholder="Amsel,3,73.2&#10;Grünfink,4,92.2&#10;Kleiber,8,94.7"></textarea>
-        <button onclick="parseImport()" data-i18n="parseBtn">Einlesen</button>
-      </div>
-    </div>
-
-    <label class="field-label" data-i18n="fieldSpecies">Beobachtete Arten</label>
-    <div id="speciesRows"></div>
-    <button class="add-species-btn" onclick="addSpeciesRow()" data-i18n="addSpeciesBtn">+ Art hinzufügen</button>
-
-
-    <label class="field-label" data-i18n="fieldNotes">Notizen</label>
-    <textarea id="entryNotes" data-i18n-placeholder="notesPlaceholder" placeholder="Wetter, Beobachtungen, Auffälligkeiten..."></textarea>
-
-    <button class="save-btn" onclick="saveEntry()" data-i18n="saveBtn">Aufnahme speichern</button>
-    </div>
-  </div>
 
   <div class="panel" data-home="map">
     <h2>
@@ -1139,6 +1072,83 @@
 </div>
 
 
+<div class="modal-overlay" id="entryModal" onclick="if(event.target===this) closeEntryModal()">
+  <div class="modal-card" style="max-width:560px;">
+    <button class="modal-close" onclick="closeEntryModal()">×</button>
+    <div class="modal-body" style="padding:24px;">
+      <h3 style="margin-bottom:16px;" data-i18n="panelEntryTitle">Neue Aufnahme eintragen</h3>
+
+    <div class="zone-toggle" style="margin-bottom:14px;">
+      <button type="button" class="zone-btn active-sel" id="btnTypeBird" onclick="setEntryType('bird')" aria-pressed="true" data-i18n="typeBird">BirdNET-Aufnahme</button>
+      <button type="button" class="zone-btn" id="btnTypeNight" onclick="setEntryType('night')" aria-pressed="false" data-i18n="typeNight">Nachtkamera</button>
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-group">
+        <label class="field-label" data-i18n="fieldDate">Datum</label>
+        <input type="date" id="entryDate">
+      </div>
+      <div class="slider-group">
+        <label class="field-label" data-i18n="fieldTime">Uhrzeit</label>
+        <input type="time" id="entryTime">
+      </div>
+      <div id="dateTimeHint" style="display:none; flex-basis:100%; font-size:11px; margin-top:2px;"></div>
+      <div class="slider-group" id="durationGroup">
+        <label class="field-label" data-i18n="fieldDuration">Dauer (Min)</label>
+        <input type="number" id="entryDuration" value="6" min="1">
+      </div>
+    </div>
+
+    <label class="field-label" data-i18n="fieldZone">Zone</label>
+    <div class="zone-toggle">
+      <button type="button" class="zone-btn active-a" id="btnZoneA" onclick="setZone('A')" aria-pressed="true" data-i18n="zoneATag">Zone A · Garten</button>
+      <button type="button" class="zone-btn" id="btnZoneB" onclick="setZone('B')" aria-pressed="false" data-i18n="zoneBTag">Zone B · Feldrand</button>
+    </div>
+
+    <div id="importSection">
+      <label class="field-label" data-i18n="uploadLabel" style="margin-top:16px;">BirdNET-Datei hochladen</label>
+      <div class="dropzone" id="birdnetDrop" tabindex="0" role="button"
+           onclick="document.getElementById('birdnetFileInput').click()"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('birdnetFileInput').click();}">
+        <span class="dropzone-main" data-i18n="dropzoneMain">BirdNET-.txt hierher ziehen</span>
+        <span class="dropzone-sub" data-i18n="dropzoneSub">oder klicken, um eine Datei zu wählen</span>
+      </div>
+      <input type="file" id="birdnetFileInput" accept=".txt" onchange="handleBirdnetFile(event)" style="display:none;">
+      <div id="uploadStatus" style="font-size:11px; color:var(--text-dim); margin-top:4px;"></div>
+
+      <div class="bulk-import">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('bulkFileInput').click()" data-i18n="bulkBtn">Mehrere Sessions auf einmal importieren…</button>
+        <input type="file" id="bulkFileInput" accept=".txt,.json" multiple onchange="handleBulkImport(event)" style="display:none;">
+        <div class="bulk-hint" data-i18n="bulkHint">Wähle alle selections.txt aus (die metadata.json-Dateien gern mit — sie liefern die exakte Dauer). Datum und Uhrzeit werden aus den Dateinamen gelesen, bereits vorhandene Sessions werden übersprungen. Die Zone oben gilt für den ganzen Stapel.</div>
+        <label class="weather-row" style="margin-top:9px;">
+          <input type="checkbox" id="bulkOverwrite">
+          <span data-i18n="bulkOverwriteLabel">Bestehende Sessions bei gleichem Zeitstempel ersetzen (z. B. nach erneuter Analyse)</span>
+        </label>
+        <div class="bulk-hint" data-i18n="bulkOverwriteHint">Ersetzt nur die Artenerkennungen. Notizen, Wetter und manuell eingetragene Individuenzahlen bleiben erhalten. Standardmäßig aus.</div>
+        <div id="bulkStatus" style="font-size:11px; color:var(--text-dim); margin-top:6px;"></div>
+      </div>
+
+      <span class="import-toggle" onclick="toggleImport()" data-i18n="importToggle">oder BirdNET-Export einfügen (CSV: Art,Anzahl,Konfidenz)</span>
+      <div class="import-box" id="importBox">
+        <textarea id="importText" data-i18n-placeholder="importPlaceholder" placeholder="Amsel,3,73.2&#10;Grünfink,4,92.2&#10;Kleiber,8,94.7"></textarea>
+        <button onclick="parseImport()" data-i18n="parseBtn">Einlesen</button>
+      </div>
+    </div>
+
+    <label class="field-label" data-i18n="fieldSpecies">Beobachtete Arten</label>
+    <div id="speciesRows"></div>
+    <button class="add-species-btn" onclick="addSpeciesRow()" data-i18n="addSpeciesBtn">+ Art hinzufügen</button>
+
+
+    <label class="field-label" data-i18n="fieldNotes">Notizen</label>
+    <textarea id="entryNotes" data-i18n-placeholder="notesPlaceholder" placeholder="Wetter, Beobachtungen, Auffälligkeiten..."></textarea>
+
+    <button class="save-btn" onclick="saveEntry()" data-i18n="saveBtn">Aufnahme speichern</button>
+    </div>
+  </div>
+</div>
+
+
 <div class="modal-overlay" id="editModal" onclick="if(event.target===this) closeEditModal()">
   <div class="modal-card" style="max-width:480px;">
     <button class="modal-close" onclick="closeEditModal()">×</button>
@@ -1242,7 +1252,7 @@
 // attribute, the guide modal, and every backup file automatically. Scheme is
 // semver (MAJOR.MINOR.PATCH): PATCH = fix, MINOR = new feature, MAJOR = a
 // breaking change to saved data. Pre-1.0 while it's still settling.
-const APP_VERSION = '0.28.5';
+const APP_VERSION = '0.30.0';
 const APP_VERSION_DATE = '2026-09-02';
 // ─────────────────────────────────────────────────────────────────────────
 const COMMON_SPECIES = ["Amsel","Blaumeise","Bluthänfling","Buchfink","Elster","Gelbspötter","Grünfink","Kleiber","Kohlmeise","Nebelkrähe","Rabenkrähe","Rauchschwalbe","Ringeltaube","Rotkehlchen"];
@@ -2103,6 +2113,7 @@ const I18N = {
   backupBannerExportBtn: {de:"Jetzt exportieren", en:"Export now"},
   backupBannerDismissBtn:{de:"Später", en:"Later"},
   panelEntryTitle:  {de:"Neue Aufnahme eintragen", en:"Log a new recording"},
+  newEntryBtn:      {de:"+ Neue Aufnahme", en:"+ New recording"},
   fieldDate:        {de:"Datum", en:"Date"},
   fieldTime:        {de:"Uhrzeit", en:"Time"},
   fieldDuration:    {de:"Dauer (Min)", en:"Duration (min)"},
@@ -2121,7 +2132,6 @@ const I18N = {
   saveBtn:          {de:"Aufnahme speichern", en:"Save recording"},
   panelOverviewTitle:{de:"Artenübersicht", en:"Species overview"},
   tabOverview:{de:"Neu & Übersicht", en:"New & overview"},
-  tabLog:{de:"Eintragen", en:"Log"},
   tabPatterns:{de:"Muster", en:"Patterns"},
   tabMap:{de:"Karte & Zonen", en:"Map & zones"},
   panelSignatureTitle:{de:"Habitat-Signatur", en:"Habitat signature"},
@@ -3185,6 +3195,20 @@ function initDropzone(){
 // Newest first. Keep entries short — one line per user-visible change. This is
 // what the version badge opens to, so it's the honest record of "what changed".
 const CHANGELOG = [
+  { v:'0.30.0', date:'2026-09-02', de:[
+      'Neue Struktur: „Eintragen" ist kein eigener Tab mehr, sondern eine Aktion „+ Neue Aufnahme" oben im Header — von überall erreichbar, öffnet als Dialog über dem Dashboard',
+      'Nach dem Speichern schließt sich der Dialog automatisch und die Übersicht zeigt sofort die neuen Zahlen — kein Tab-Wechsel mehr nötig, um das Ergebnis eines Imports zu sehen',
+      'Nur noch drei Tabs: Neu & Übersicht, Muster, Karte & Zonen — Übersicht ist jetzt konsequent die Startseite',
+    ], en:[
+      'New structure: "Log entry" is no longer its own tab but a "+ New recording" action in the header — reachable from anywhere, opens as a dialog over the dashboard',
+      'The dialog closes automatically after saving and the overview immediately shows the updated numbers — no more tab-switching to see whether an import worked',
+      'Down to three tabs: New & overview, Patterns, Map & zones — overview is now consistently the landing page',
+    ]},
+  { v:'0.29.0', date:'2026-09-02', de:[
+      'Wetter-Symbole von Emoji auf eigene kleine SVG-Icons umgestellt — einheitlicher Stil, konsistente Farbe (Grau + Gold-Akzent), rendert überall gleich statt je nach Betriebssystem unterschiedlich',
+    ], en:[
+      'Weather icons switched from emoji to custom small SVG icons — consistent style and color (gray + gold accent), renders identically everywhere instead of varying by operating system',
+    ]},
   { v:'0.28.5', date:'2026-09-02', de:[
       'Die eigentliche Ursache des Wetter-Problems gefunden: ein beschädigter gespeicherter Standort-Datensatz führte zu ungültigen Koordinaten (NaN), die Open-Meteo zurecht mit „400 Bad Request" ablehnte — keine der beiden vorherigen Vermutungen (Archiv-API, CORS) war die Ursache',
       'Gespeicherte Koordinaten werden beim Laden jetzt geprüft; ungültige Datensätze führen nicht mehr zu kaputten Anfragen, sondern zum neutralen Standard-Standort',
@@ -4504,18 +4528,31 @@ async function fetchWeatherFor(date, time){
 
 // Compact glyph for the day — for collapsed rows and dense views where a
 // full readout would be clutter. Derived from the WMO code group.
+// Small, single-color SVG icons instead of emoji — emoji render inconsistently
+// across OS/browsers and clash with the app's controlled palette; at 14px in
+// a collapsed history row, similar-looking emoji (partly-sunny vs rain-cloud)
+// are genuinely hard to tell apart. These use currentColor so CSS controls
+// the color per state, and stay to 2-3 simple shapes for small-size clarity.
+const WX_CLOUD = '<path d="M4.8 11.2a2.4 2.4 0 0 1-.3-4.78 3 3 0 0 1 5.7-1.62 2.35 2.35 0 0 1 2.8 2.3 2.4 2.4 0 0 1-.2 4.1z"/>';
 function weatherGlyph(code){
   if(code === null || code === undefined) return '';
-  if(code === 0) return '☀️';
-  if(code === 1 || code === 2) return '🌤️';
-  if(code === 3) return '☁️';
-  if(code === 45 || code === 48) return '🌫️';
-  if(code >= 51 && code <= 57) return '🌦️';
-  if(code >= 61 && code <= 67) return '🌧️';
-  if(code >= 71 && code <= 77) return '🌨️';
-  if(code >= 80 && code <= 82) return '🌦️';
-  if(code >= 85 && code <= 86) return '🌨️';
-  if(code >= 95) return '⛈️';
+  const svg = (inner, cls)=>`<svg class="wx-icon ${cls||''}" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+  if(code === 0)
+    return svg('<circle cx="8" cy="8" r="3.1"/><g stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M8 1.4v1.7M8 12.9v1.7M1.4 8h1.7M12.9 8h1.7M3.3 3.3l1.2 1.2M11.5 11.5l1.2 1.2M3.3 12.7l1.2-1.2M11.5 4.5l1.2-1.2"/></g>', 'wx-sun');
+  if(code === 1 || code === 2)
+    return svg('<circle cx="5.6" cy="5.6" r="2.3" class="wx-sun-part"/>' + WX_CLOUD, 'wx-partly');
+  if(code === 3)
+    return svg(WX_CLOUD, 'wx-cloud');
+  if(code === 45 || code === 48)
+    return svg(WX_CLOUD + '<g stroke="currentColor" stroke-width="1.1" stroke-linecap="round"><path d="M3.5 13h9M4.5 14.6h7"/></g>', 'wx-fog');
+  if(code >= 51 && code <= 57)
+    return svg(WX_CLOUD + '<g stroke="currentColor" stroke-width="1.1" stroke-linecap="round"><path d="M6 12.2v1.6M9.5 12.2v1.6"/></g>', 'wx-rain');
+  if((code >= 61 && code <= 67) || (code >= 80 && code <= 82))
+    return svg(WX_CLOUD + '<g stroke="currentColor" stroke-width="1.1" stroke-linecap="round"><path d="M5.5 12l-.9 2.2M8.3 12l-.9 2.2M11.1 12l-.9 2.2"/></g>', 'wx-rain');
+  if((code >= 71 && code <= 77) || (code >= 85 && code <= 86))
+    return svg(WX_CLOUD + '<g stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M6 12.4v1.8M6 12.4l1.1 1.8M6 12.4L4.9 14.2M10 12.4v1.8M10 12.4l1.1 1.8M10 12.4L8.9 14.2"/></g>', 'wx-snow');
+  if(code >= 95)
+    return svg(WX_CLOUD + '<path d="M8.6 11.3l-2 3.4h1.7l-1.2 2.6 2.9-3.6H8.2z" class="wx-bolt"/>', 'wx-storm');
   return '';
 }
 
@@ -4619,6 +4656,7 @@ async function saveEntry(){
   document.getElementById('entryDate').value = todayStr();
   document.getElementById('entryTime').value = nowStr();
   addSpeciesRow();
+  closeEntryModal();   // back to the dashboard, which renderAll() below updates
   renderAll();
 
   if(newSpecies.length === 0){
@@ -4669,6 +4707,26 @@ async function openEditEntry(id){
 
 function closeEditModal(){
   document.getElementById('editModal').classList.remove('open');
+}
+
+// The "+ Neue Aufnahme" header action — replaces the old dedicated tab.
+// Opening it resets the form to a clean state (today's date, Zone A, one
+// empty species row) unless the form already has content from a previous
+// open in this session, so a user who opens it, gets interrupted, and
+// reopens doesn't lose partial input.
+function openEntryModal(){
+  const dateEl = document.getElementById('entryDate');
+  if(dateEl && !dateEl.value){
+    const now = new Date();
+    dateEl.value = now.toISOString().slice(0,10);
+    const timeEl = document.getElementById('entryTime');
+    if(timeEl && !timeEl.value) timeEl.value = now.toTimeString().slice(0,5);
+  }
+  if(!document.getElementById('speciesRows').children.length) addSpeciesRow();
+  document.getElementById('entryModal').classList.add('open');
+}
+function closeEntryModal(){
+  document.getElementById('entryModal').classList.remove('open');
 }
 
 async function saveEditEntry(){
